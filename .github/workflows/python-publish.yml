@@ -35,7 +35,6 @@ jobs:
         pwd
     - name: list working directory
       run: >-
-        pwd
         ls
     - name: Build a binary wheel and a source tarball
       run: >-
