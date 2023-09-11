@@ -33,6 +33,7 @@ jobs:
     - name: print working directory
       run: >-
         pwd
+        ls
     - name: Build a binary wheel and a source tarball
       run: >-
         python3 -m
