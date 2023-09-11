@@ -3,7 +3,7 @@ requires = ["flit_core>=3.4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "undulator-analysis-hzb"
+name = "translated_routine"
 version = "0.0.1"
 authors = [
   { name="E. Rial", email="ed.rial@helmholtz-berlin.de" },
@@ -13,6 +13,6 @@ readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU GPL v3",
     "Operating System :: OS Independent",
 ]
