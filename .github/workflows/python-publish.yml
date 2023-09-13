@@ -44,11 +44,13 @@ jobs:
         --wheel
         --outdir dist/
         .
-    - name: Publish distribution 📦 to Test PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        repository-url: https://test.pypi.org/legacy/
+        
+#This works.... but the name versioning needs to somehow automatically increment
+#    - name: Publish distribution 📦 to Test PyPI
+#      uses: pypa/gh-action-pypi-publish@release/v1
+#      with:
+#        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+#        repository-url: https://test.pypi.org/legacy/
 
 #for when the time comes to push to pip
 #    - name: Publish distribution 📦 to PyPI
