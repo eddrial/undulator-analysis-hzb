@@ -118,9 +118,9 @@ class ctkApp:
         canvas.draw()
         canvas.get_tk_widget().place(relx=0.33, rely=0.025)
         
-        toolbar = NavigationToolbar2TkAgg(canvas, self)
-        toolbar.update()
-        canvas._tkcanvas.place(relx = 0, rely = 0)
+#        toolbar = NavigationToolbar2TkAgg(canvas, self)
+#        toolbar.update()
+#        canvas._tkcanvas.place(relx = 0, rely = 0)
         
         self.root.update()
         
@@ -143,7 +143,7 @@ if __name__ == '__main__':
     
     print('does the add one function work? 4 add 1 = : {}'.format(demo1.add_one(4)))
     
-    #demo1.simply_plot()
+    #test_demo1.simply_plot()
     #Testing Tk
 #    Tkplay()
 
