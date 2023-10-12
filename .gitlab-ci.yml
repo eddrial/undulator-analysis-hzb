@@ -18,6 +18,7 @@ test-job2:
     - echo "This job is trying to run pytest"
     - apt-get update -q -y
     - pip install pytest
+    - pip install matplotlib
     - pip list
     - pytest
 
