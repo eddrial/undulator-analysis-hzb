@@ -1,3 +1,22 @@
+#set the image
+image: python:3.10
+
+#change pip's cache directory
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+before_script:
+  - python --version ; pip --version  # For debugging
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+  - pip install .
+
+
 build-job:
   stage: build
   script:
@@ -11,9 +30,9 @@ test-job1:
 
 test-job2:
   stage: test
-  image: python:3.10
-  before_script:
-  - pip install .
+#  image: python:3.10
+#  before_script:
+#  - pip install .
   script:
     - echo "This job is trying to run pytest"
     - apt-get update -q -y
