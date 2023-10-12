@@ -11,7 +11,7 @@ test-job1:
 test-job2:
   stage: test
   script:
-    - echo "This job is trying to run pytest
+    - echo "This job is trying to run pytest"
     - pytest
 
 deploy-prod:
