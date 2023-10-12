@@ -11,6 +11,8 @@ test-job1:
 test-job2:
   stage: test
   image: python:3.10
+  before_script:
+  - pip install .
   script:
     - echo "This job is trying to run pytest"
     - apt-get update -q -y
