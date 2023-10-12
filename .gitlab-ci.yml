@@ -10,10 +10,12 @@ test-job1:
 
 test-job2:
   stage: test
-  image: python
+  image: python:3.10
   script:
     - echo "This job is trying to run pytest"
-    - pytest
+    - apt-get update -q -y
+    - pip install pytest
+    - pytest tests
 
 deploy-prod:
   stage: deploy
