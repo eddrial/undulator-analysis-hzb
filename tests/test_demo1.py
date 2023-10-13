@@ -17,5 +17,5 @@ class TestDemo():
     def test_three(self):
         inp = 3
         
-        assert demo1.add_one(inp) == 5
+        assert demo1.add_one(inp) == 4
         
