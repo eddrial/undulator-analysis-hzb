@@ -21,7 +21,7 @@ code_quality:
 test_job:
   stage: test
   script:
-    - pip install pytest pytest-cov
+    - pip install pytest pytest-cov .
     - pytest --junitxml=report.xml --cov=src --cov-report term --cov-report xml:coverage.xml
     - coverage xml
     
