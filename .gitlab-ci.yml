@@ -41,6 +41,8 @@ test-job2:
     - pip list
     - pwd
     - pytest --cov undulator_analysis_hzb --cov-report term --cov-report xml:coverage/cobertura-coverage.xml
+    #modify cobertura xml to replace filename route
+    - sed -i 's=venv/lib/python3.10/site-packages/undulator_analysis_hzb=src/undulator_analysis_hzb=g'
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     reports:
