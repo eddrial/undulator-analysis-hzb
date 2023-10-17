@@ -43,7 +43,7 @@ test-job2:
     - pytest --cov undulator_analysis_hzb --cov-report term --cov-report xml:coverage/cobertura-coverage.xml
     #modify cobertura xml to replace filename route
 #    - sed -i 's=<source>/builds/eddrial/undulator_analysis_hzb</source>=<source>./</source>=g' coverage/cobertura-coverage.xml
-#    - sed -i 's=venv/lib/python3.10/site-packages/undulator_analysis_hzb=.=g' coverage/cobertura-coverage.xml
+    - sed -i 's=venv/lib/python3.10/site-packages/undulator_analysis_hzb=.=g' coverage/cobertura-coverage.xml
 #    - sed -i 's=venv.lib.python3.10.site-packages.undulator_analysis_hzb=undulator_analysis_hzb=g' coverage/cobertura-coverage.xml
   
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
