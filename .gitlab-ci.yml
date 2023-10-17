@@ -1,65 +1,33 @@
-#set the image
-image: python:3.10
+image: "python:3.7"
 
-#change pip's cache directory
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+stages:
+  - test
 
-cache:
-  paths:
-    - .cache/pip
+include:
+  - template: Code-Quality.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
 
-before_script:
-  - python --version ; pip --version  # For debugging
-  - pip install virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
-  - pip install .
-
-
-#build-job:
-#  stage: build
-#  script:
-#    - echo "Hello, $GITLAB_USER_LOGIN!"
-
-
-#test-job1:
-#  stage: test
-#  script:
-#    - echo "This job tests something"
-
-test-job2:
-  stage: test
-#  image: python:3.10
-#  before_script:
-#  - pip install .
-  script:
-    - echo "This job is trying to run pytest"
-    - apt-get update -q -y
-    - pip install pytest matplotlib pytest-cov
-#    - pip install matplotlib
-    - pip list
-    - pwd
-#    - pytest --cov undulator_analysis_hzb --cov-report term --cov-report xml:coverage/cobertura-coverage.xml
-#let's simplify
-    - pytest --junitxml=report.xml --cov=undulator_analysis_hzb --cov-report term --cov-report xml:coverage/cobertura-coverage.xml
-    - coverage xml
-
-    #modify cobertura xml to replace filename route
-#    - sed -i 's=<source>/builds/eddrial/undulator_analysis_hzb</source>=<source>./</source>=g' coverage/cobertura-coverage.xml
-#    - sed -i 's=venv/lib/python3.10/site-packages/undulator_analysis_hzb=src/undulator_analysis_hzb=g' coverage/cobertura-coverage.xml
-#    - sed -i 's=venv.lib.python3.10.site-packages.undulator_analysis_hzb=undulator_analysis_hzb=g' coverage/cobertura-coverage.xml
-  
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+semgrep-sast:
   artifacts:
+    paths: [gl-sast-report.json]
+
+code_quality:
+  stage: test
+  artifacts:
+    expire_in: 180 days
+    expose_as: code_quality
+    paths: [gl-code_quality-report.json]
+
+test_job:
+  stage: test
+  script:
+    - pip install pytest pytest-cov
+    - pytest --junitxml=report.xml --cov=src/
+    - coverage xml
+  artifacts:
+    when: always
     reports:
       junit: report.xml
       coverage_report:
         coverage_format: cobertura
-        path: coverage/cobertura-coverage.xml
-
-deploy-prod:
-  stage: deploy
-  script:
-    - echo "This job deploys something from the $CI_COMMIT_BRANCH branch."
-  environment: production
+        path: coverage.xml
