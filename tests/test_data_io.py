@@ -17,6 +17,6 @@ class TestConstructor():
         assert dio.data_io(file_path).file_type == 'DVM'
         
     def test_log(self):
-        file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/RUN1221.DVM')
+        file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/RUN1221.LOG')
         assert dio.data_io(file_path).file_type == 'LOG'
     
