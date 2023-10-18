@@ -3,7 +3,7 @@ Created on Oct 16, 2023
 
 @author: oqb
 '''
-
+import numpy as np
 
 class data_io(object):
     '''
@@ -33,4 +33,10 @@ class data_io(object):
         elif self.file_type == 'h5':
             self.file_description = '''An HDF5 file gathering all data together in a self descriptive way'''    
             
-        print('a useless line that is different again')
+#        print('a useless line that is different again')
+        
+    def open(self):
+        if self.file_type == 'DVM':
+            a = np.genfromtxt(self.file_path)
+            
+            return a
