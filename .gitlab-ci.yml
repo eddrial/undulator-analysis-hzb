@@ -48,7 +48,7 @@ test-job2:
     #modify cobertura xml to replace filename route
 #    - sed -i 's=<source>/builds/eddrial/undulator_analysis_hzb</source>=<source>./</source>=g' coverage/cobertura-coverage.xml
     - sed -i 's=venv/lib/python3.10/site-packages/=src/=g' coverage/cobertura-coverage.xml
-    - sed -i 's=venv.lib.python3.10.site-packages.demo=src.demo=g' coverage/cobertura-coverage.xml
+    - sed -i 's=venv.lib.python3.10.site-packages.=src.=g' coverage/cobertura-coverage.xml
   
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
