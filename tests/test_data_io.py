@@ -12,11 +12,15 @@ import importlib.resources
 
 class TestConstructor():
     
-    def test_one(self):
+    def test_dvm(self):
         file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG1221.DVM')
         assert dio.data_io(file_path).file_type == 'DVM'
         
     def test_log(self):
         file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/RUN1221.LOG')
         assert dio.data_io(file_path).file_type == 'LOG'
+        
+    def test_dat(self):
+        file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/HP-FIELD1221.DAT')
+        assert dio.data_io(file_path).file_type == 'DAT'
     
