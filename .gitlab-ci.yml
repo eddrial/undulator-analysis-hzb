@@ -40,7 +40,7 @@ test-job2:
 #    - pip install matplotlib
     - pip list
     - pwd
-    - ls
+    - ls tests/resources
 #    - pytest --cov undulator_analysis_hzb --cov-report term --cov-report xml:coverage/cobertura-coverage.xml
 #let's simplify
     - pytest --junitxml=report.xml --cov=undulator_analysis_hzb --cov-report term --cov-report xml:coverage.xml
