@@ -43,7 +43,8 @@ test-job2:
     - ls
     - ls tests/resources
     - ls venv/lib/python3.10/site-packages/undulator_analysis_hzb/
-    - cp -r tests/resources venv/lib/python3.10/
+    - cp -r tests venv/lib/python3.10/
+    - ls /builds/eddrial/undulator_analysis_hzb/venv/lib/python3.10/site-packages/undulator_analysis_hzb/../../tests/resources/
 #    - pytest --cov undulator_analysis_hzb --cov-report term --cov-report xml:coverage/cobertura-coverage.xml
 #let's simplify
     - pytest --junitxml=report.xml --cov=undulator_analysis_hzb --cov-report term --cov-report xml:coverage.xml
