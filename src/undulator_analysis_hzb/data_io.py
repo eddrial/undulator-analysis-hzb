@@ -37,6 +37,16 @@ class data_io(object):
         
     def open(self):
         if self.file_type == 'DVM':
-            a = np.genfromtxt(self.file_path)
+            self.dvm_data = np.genfromtxt(self.file_path)
             
-            return a
+            return self.dvm_data
+        
+        if self.file_type == 'DAT':
+            self.proc_data = np.genfromtxt(self.file_path, skip_header = 1)
+            with open(self.file_path) as f:
+                yz = f.readline()
+            yz = yz.split()
+            yz[0] = float(yz[0])
+            yz[1] = float(yz[1])
+            self.yz = np.array(yz)
+            return self.proc_data

@@ -21,5 +21,7 @@ if __name__ == '__main__':
     b = io_object_mag.open()
         
         
-    print(a.shape)
-    print(b.shape)
+    print('checking a.shape {}'.format(a.shape))
+    print('checking b.shape{}'.format(b.shape))
+    
+    
