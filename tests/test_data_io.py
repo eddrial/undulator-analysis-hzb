@@ -27,7 +27,7 @@ class TestConstructor():
 class TestOpen():
     
     def test_open_dvm(self):
-        file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('tests/resources/MAG1221.DVM')
+        file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG1221.DVM')
         file_object = dio.data_io(file_path)
         assert file_object.open().shape == (5150,3)
         
