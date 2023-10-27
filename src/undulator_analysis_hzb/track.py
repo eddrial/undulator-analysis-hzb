@@ -9,8 +9,6 @@ class track(object):
     '''
     classdocs
     '''
-
-
     def __init__(self, track_number):
         '''
         Constructor
@@ -19,7 +17,7 @@ class track(object):
         
 #        print('a useless line that is different again')
         
-    def open_data(self, file_path):
+    def load_dvm_data(self, file_path):
         self.file_path = file_path
         self.file_type = file_path.name.partition('.')[-1]
         
