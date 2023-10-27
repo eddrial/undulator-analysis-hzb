@@ -9,17 +9,17 @@ class track(object):
     '''
     classdocs
     '''
-    def __init__(self, track_number):
+    def __init__(self):
         '''
         Constructor
         '''
-        self.track_number = track_number
         
 #        print('a useless line that is different again')
         
     def load_dvm_data(self, file_path):
         self.file_path = file_path
         self.file_type = file_path.name.partition('.')[-1]
+        self.track_name = file_path.name.partition('.')[-3][-4:]
         
         #determine file type and describe file
         if self.file_type == 'DVM':

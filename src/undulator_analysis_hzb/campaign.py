@@ -3,72 +3,92 @@ Created on Oct 26, 2023
 
 @author: oqb
 '''
-
-class Device(object):
-    '''
-    This is the top level class for a device and its measurements.
-    '''
-
-
-    def __init__(self, device_name):
-        '''
-        Constructor
-        '''
-        self.name = device_name
-        
-        self.campaigns = {}
-        
-    def add_campaign(self, campaign):
-        self.campaigns[campaign.name] = campaign
+import h5py as h5
+import undulator_analysis_hzb.track as trk
 
 class Campaign(object):
+    '''This is the top level class allowing access to all 
+    data and metadata of a measurement campaign, from component magnet blocks
+    through to final device'''
     def __init__(self,campaign_name):
+        self.campaign_name = campaign_name
+        
+        self.data_store = {}
+    
+        '''        self.structure = {'Component':
+                          {'Part':
+                           {'Step':
+                            {'State':
+                             {'Measurement':
+                              {'Track':{}
+                               }
+                              }
+                             }
+                            }
+                           }
+                          }
+                          '''
         self.name = campaign_name
         
-        self.components = {}
-        
-    def add_component(self,component):
-        self.components[component.name] = component 
-        
-class Component(object):
-    def __init__(self,component_name):
-        self.name = component_name
-        
-        self.steps = {}
-        
-    def add_step(self,step):
-        self.steps[step.name] = step
-        
-class Step(object):
-    def __init__(self, step_name):
-        self.name = step_name 
-        
-        self.states = {}
-        
-    def add_state(self,state):
-        self.states[state.name] = state
-        
-class State(object):
-    def __init__(self,state_name):
-        
-        self.name = state_name
-        
-        self.measurements = {}
-        
-        
-    def add_measurement(self,measurement):
-        self.measurements[measurement.name] = measurement
-        
-class Measurement(object):
-    def __init__(self,measurement_name):
-        self.name = measurement_name
-        
-        self.tracks = {}
-        
+        self.structure = {}
+
     def add_track(self,track):
-        self.tracks[track.name] = track
+        if track.component not in self.data_store.keys():
+            self.data_store[track.component] = {}
         
-    def assign_iteration(self):
-        pass
-        #if track in self.tracks
-        
+        if track.part not in self.data_store[track.component].keys():
+            self.data_store[track.component][track.part] = {}
+            
+        if track.step not in self.data_store[track.component]\
+                                            [track.part].keys():
+            self.data_store[track.component]\
+            [track.part]\
+            [track.step] = {}
+            
+        if track.state not in self.data_store[track.component]\
+                                            [track.part]\
+                                            [track.step].keys():
+            self.data_store[track.component]\
+            [track.part]\
+            [track.step]\
+            [track.state] = {}
+            
+        if track.measurement not in self.data_store[track.component]\
+                                            [track.part]\
+                                            [track.step]\
+                                            [track.state].keys():
+            self.data_store[track.component]\
+            [track.part]\
+            [track.step]\
+            [track.state]\
+            [track.measurement] = {}
+            
+        if track.track_name not in self.data_store[track.component]\
+                                            [track.part]\
+                                            [track.step]\
+                                            [track.state]\
+                                            [track.measurement].keys():
+            self.data_store[track.component]\
+            [track.part]\
+            [track.step]\
+            [track.state]\
+            [track.measurement]\
+            [track.track_name] = {}
+            
+        if 'DVMData' not in self.data_store[track.component]\
+                                            [track.part]\
+                                            [track.step]\
+                                            [track.state]\
+                                            [track.measurement]\
+                                            [track.track_name].keys():
+            self.data_store[track.component]\
+            [track.part]\
+            [track.step]\
+            [track.state]\
+            [track.measurement]\
+            [track.track_name]\
+            ['DVMData'] = track.dvm_data
+#                                track.state:
+#                                    track.measurement:
+#                                        track.name:
+#                                            'DVMData'} = track.dvm_data
