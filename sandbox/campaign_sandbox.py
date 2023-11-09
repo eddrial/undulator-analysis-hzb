@@ -6,7 +6,9 @@ Created on Oct 26, 2023
 
 import undulator_analysis_hzb.campaign as cmp
 import undulator_analysis_hzb.track as trk
+import undulator_analysis_hzb.measurement as mes
 import importlib.resources
+from undulator_analysis_hzb.measurement import granite_bank_measurement
 
 
 if __name__ == '__main__':
@@ -26,3 +28,18 @@ if __name__ == '__main__':
     
     print (a.name)
     
+    #generating measurement
+    b = mes.measurement('RUN1221')
+    lfile_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/RUN1221.LOG')
+    
+    print(b.__class__)
+    
+    granite_bank_measurement.convert_to_granite_bank_measurement(b)
+    
+    print(b.__class__)
+    print (b.name)
+    b.define_logfile(lfile_path)
+    
+    b.read_logfile_metadata()
+    
+    print(b.loglines)
