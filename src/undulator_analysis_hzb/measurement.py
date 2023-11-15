@@ -29,6 +29,7 @@ class granite_bank_measurement(measurement):
     def __init__(self, measurement_name):
         super(granite_bank_measurement,self).__init__(measurement_name)
         self.name = measurement_name
+    
     @classmethod
     def convert_to_granite_bank_measurement(cls,obj):
         obj.__class__ = granite_bank_measurement

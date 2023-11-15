@@ -12,10 +12,16 @@ from undulator_analysis_hzb.measurement import granite_bank_measurement
 
 
 if __name__ == '__main__':
-    a = cmp.Campaign(campaign_name = 'UE51')
+    
+    
+    
+    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/test_campaign.h5')
+    
+    a = cmp.Campaign(file_path, campaign_name = 'UE51')
+    
+    a.create_campaign_file()
     
     my_track = trk.track()
-    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG1221.DVM')
     my_track.load_dvm_data(file_path)
     
     my_track.component = 'Girder'
