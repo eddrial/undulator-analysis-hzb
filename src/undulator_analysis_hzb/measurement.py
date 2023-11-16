@@ -21,6 +21,13 @@ class measurement(object):
             self.__setattr__(key, value)
         
         print('a useless line that is different again')
+        
+    def __repr__(self):
+        return 'Measurement()'
+    
+    def __str__(self):
+        #TODO tidy up pront command
+        return 'Measurement: {}'.format(self.name)
 
     def add_component(self,component):
         #TODO look at making series of component classes? But a string descriptor will do
