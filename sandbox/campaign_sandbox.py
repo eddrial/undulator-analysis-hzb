@@ -30,9 +30,9 @@ if __name__ == '__main__':
     my_track.step = 0
     my_track.measurement = '01'
     
-    a.add_track(my_track)
+    #a.add_track(my_track)
     
-    print (a.name)
+    print (a.campaign_name)
     
     #generating measurement
     b = mes.measurement('RUN1221')
@@ -48,4 +48,11 @@ if __name__ == '__main__':
     
     b.read_logfile_metadata()
     
-    print(b.loglines)
+    a.add_measurement(b)
+    
+    try:
+        b.check_metadata()
+    except Exception as e:
+        print(e.args[0])
+    
+    print(b.logfile)

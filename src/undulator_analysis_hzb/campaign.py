@@ -36,13 +36,15 @@ class Campaign(object):
                           '''
         
         self.structure = {}
-        
+    
+    
+    ###I/O functions
     def create_campaign_file(self):
     
         try:
             h5.File(self.filepath,'w-')
         except:
-            print('{} exists.'.format(self.filepath))
+            print('{} exists. Open the file or choose a different name.'.format(self.filepath))
                 
         else:
             h5.File(self.filepath,'w-')
@@ -53,6 +55,20 @@ class Campaign(object):
     def save_campaign_file(self):
         pass
         
+    ### Adding and Manipulation of Measurement objects to Campaign
+        
+    def add_measurement (self, measurement):
+        #measurement must contain certain attributes to allow it to be placed in campaign structure
+        #required attributes
+        #component, ident, step, state?, measurement_system, measurement_timestamp
+        #optional attributes
+        #author, comment
+        try:
+            measurement.check_metadata()
+        except:
+            print ('Metadata from measurement missing. Please fill all attributes.')
+        
+        print ('this is the end of the function add_measurement')
 
 #    def add_component(self,component):
 #        self.__setattr__('component', component)
