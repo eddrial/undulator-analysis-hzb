@@ -65,15 +65,12 @@ class Campaign(object):
         #author, comment
         try:
             measurement.check_metadata()
-        except:
-            print ('Metadata from measurement missing. Please fill all attributes.')
+        except Exception as e:
+            print (e.args[0])
         
-        print ('this is the end of the function add_measurement')
+        else:
+            print ('The measurement has all the required metadata')
 
-#    def add_component(self,component):
-#        self.__setattr__('component', component)
-        
-#    def add_ident(self,ident):
-#        self.__setattr__('ident', ident)
+
     
         

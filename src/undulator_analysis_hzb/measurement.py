@@ -20,7 +20,28 @@ class measurement(object):
         for key, value in kwargs.items():
             self.__setattr__(key, value)
         
-#        print('a useless line that is different again')
+        print('a useless line that is different again')
+
+    def add_component(self,component):
+        #TODO look at making series of component classes? But a string descriptor will do
+        self.__setattr__('component', component)
+        
+    def add_ident(self,ident):
+        #just a string
+        self.__setattr__('ident', ident)
+
+    def add_step(self,step):
+        #which step of the measurement?
+        self.__setattr__('step', step)
+
+    def add_state(self,state):
+        #dictionary - that ties into component class?
+        self.__setattr__('state', state)
+        
+    def add_measurement_system(self,measurement_system):
+        self.__setattr__('measurement_system', measurement_system)
+
+
 
     def check_metadata(self):
         required_metadata = ['component',
@@ -36,7 +57,14 @@ class measurement(object):
                 missing_metadata.append(attrib)
         
         if missing_metadata.__len__() > 0:
-            raise IncompleteMetadataError(missing_metadata)
+            message = ''
+            for elem in missing_metadata:
+                message += elem + ', '
+            message = 'This measurement is missing the metadata for {}'.format(message[:-2])
+ 
+            raise IncompleteMetadataError(message)
+            print('1')
+
         else:
             return True
         
@@ -106,10 +134,10 @@ class granite_bank_measurement(measurement):
                 
 ##area for custom exception
 class IncompleteMetadataError(Exception):
-    def __init__(self,missing_metadata):
-        m = ''
-        for elem in missing_metadata:
-            m += elem + ', '
-        message = 'This measurement is missing the metadata for {}'.format(m[:-2])
+    def __init__(self,message):
+#        m = ''
+#        for elem in missing_metadata:
+#            m += elem + ', '
+#        message = 'This measurement is missing the metadata for {}'.format(m[:-2])
         super().__init__(message)
         #can this error later highlight the missing boxes??

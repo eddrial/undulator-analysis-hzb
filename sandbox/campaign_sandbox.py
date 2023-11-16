@@ -48,11 +48,13 @@ if __name__ == '__main__':
     
     b.read_logfile_metadata()
     
-    a.add_measurement(b)
+    b.add_component('undulator')
+    b.add_ident('UEtest')
+    b.add_state('a_dict')
+    b.add_step(1)
+    b.add_measurement_system('Test_Bank')
     
-    try:
-        b.check_metadata()
-    except Exception as e:
-        print(e.args[0])
+    a.add_measurement(b)
+
     
     print(b.logfile)
