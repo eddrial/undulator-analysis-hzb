@@ -17,7 +17,7 @@ if __name__ == '__main__':
     
     file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/test_campaign.h5')
     
-    a = cmp.Campaign(file_path, campaign_name = 'UE51')
+    a = cmp.Campaign(file_path, campaign_name = 'UEtest')
     
     a.create_campaign_file()
     
@@ -56,5 +56,5 @@ if __name__ == '__main__':
     
     a.add_measurement(b)
 
-    
+    a.save_campaign_file()
     print(b.logfile)
