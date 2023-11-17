@@ -48,10 +48,10 @@ if __name__ == '__main__':
     
     b.read_logfile_metadata()
     
-    b.add_component('undulator')
-    b.add_ident('UEtest')
-    b.add_state('a_dict')
-    b.add_step(1)
+    b.add_component('A_Component')
+    b.add_ident('An_Ident')
+    b.add_state('A_State')
+    b.add_step('Step_X')
     b.add_measurement_system('Test_Bank')
     
     a.add_measurement(b)
