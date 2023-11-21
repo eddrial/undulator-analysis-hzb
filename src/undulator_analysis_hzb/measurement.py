@@ -3,10 +3,11 @@ Created on Oct 16, 2023
 
 @author: oqb
 '''
-
+import importlib.resources
 import numpy as np
 import undulator_analysis_hzb.track as trk
 import datetime as dt
+from tarfile import grp
 
 class measurement(object):
     '''
@@ -88,6 +89,9 @@ class granite_bank_measurement(measurement):
         for key, value in kwargs.items():
             self.__setattr__(key, value)
     
+    def __repr__(self):
+        return 'GraniteBankMasurement()'
+    
     @classmethod
     def convert_to_granite_bank_measurement(cls,obj):
         obj.__class__ = granite_bank_measurement
@@ -138,7 +142,30 @@ class granite_bank_measurement(measurement):
                 self.pitch_velocity = float(loglines[line+5].split()[-1])
                 self.pitch_return_velocity = float(loglines[line+6].split()[-1])
                 self.pitch_unit = 'deg'
+        
+        #TODO actually algorithmically derive Track Numbers
+        self.tracks = {1221:trk.track(), 1222: trk.track(), 1223: trk.track()}
+        
+        for trac in self.tracks:
+            
+            file_path_dvm = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG{}.DVM'.format(trac))
+            self.tracks[trac].load_dvm_data(file_path_dvm)
                 
+    def read_tracks(self):
+        pass
+    
+    def save_measurement_group(self,grp):
+        for track in self.tracks:
+            trk = grp.create_group('{}'.format(track))
+            trk.create_dataset('{}'.format(track), data = self.tracks[track].dvm_data)
+            #TODO don't forget to build up metadata as attributes
+            
+            print (trk)
+            
+        print(grp)
+    
+    
+    
 ##area for custom exception
 class IncompleteMetadataError(Exception):
     def __init__(self,message):

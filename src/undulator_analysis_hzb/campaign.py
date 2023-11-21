@@ -8,7 +8,7 @@ import os
 import h5py as h5
 import undulator_analysis_hzb.track as trk
 from undulator_analysis_hzb.measurement import measurement
-from plotly.graph_objs.indicator.gauge import step
+import numpy as np
 
 class Campaign(object):
     '''This is the top level class allowing access to all 
@@ -61,10 +61,15 @@ class Campaign(object):
                 for ident in self.data_store[component].keys():
                     for step in self.data_store[component][ident].keys():
                         for state in self.data_store[component][ident][step].keys():
-                            f.create_group('{}/{}/{}/{}'.format(self.campaign_name,
+                            for meas in self.data_store[component][ident][step][state].keys():
+                                #create function append measurement to h5
+                                grp = f.create_group('{}/{}/{}/{}/{}'.format(self.campaign_name,
                                                                 component,
                                                                 step,
-                                                                state))
+                                                                state,
+                                                                meas))
+                                self.data_store[component][ident][step][state][meas].save_measurement_group(grp)
+                            
         
     ### Adding and Manipulation of Measurement objects to Campaign
         
