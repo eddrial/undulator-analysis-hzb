@@ -155,6 +155,19 @@ class granite_bank_measurement(measurement):
         pass
     
     def save_measurement_group(self,grp):
+        for item in self.__dict__:
+            if item == 'measurement_system':
+                pass
+            elif item == 'tracks':
+                pass
+            elif item == 'logfile':
+                pass
+            elif item == 'measurement_timestamp':
+                pass
+            else:
+                print(item)
+                grp.attrs[item] = self.__getattribute__(item)
+        
         for track in self.tracks:
             trk = grp.create_group('{}'.format(track))
             trk.create_dataset('{}'.format(track), data = self.tracks[track].dvm_data)
