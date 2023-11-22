@@ -21,13 +21,15 @@ class measurement(object):
         for key, value in kwargs.items():
             self.__setattr__(key, value)
         
-        print('a useless line that is different again')
+        self.processed = False # attribute to quickly indicate if base data has been processed (Volts to B)
+        
+        self.analysed = False # attribute to quickly indicate if processed data has been post-processed (1st, 2nd integrals, phase etc)
         
     def __repr__(self):
         return 'Measurement()'
     
     def __str__(self):
-        #TODO tidy up pront command
+        #TODO tidy up print command
         return 'Measurement: {}'.format(self.name)
 
     def add_component(self,component):
