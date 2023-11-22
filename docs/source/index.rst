@@ -22,6 +22,7 @@ Contents
 .. toctree::
    
    usage
+   api
 
 
 Indices and tables
