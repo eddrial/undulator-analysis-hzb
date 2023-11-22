@@ -23,10 +23,12 @@ before_script:
 #    - echo "Hello, $GITLAB_USER_LOGIN!"
 
 
-#test-job1:
-#  stage: test
-#  script:
-#    - echo "This job tests something"
+test-sphinx-docs:
+  stage: test
+  script:
+    - pip install -U sphinx
+    - sphinx-build -b . public
+#    - sphinx-build -M html docs/source docs/build
 
 test-job2:
   stage: test
