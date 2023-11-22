@@ -11,7 +11,7 @@ import numpy as np
 #fixtures
 @pytest.fixture
 def my_track():
-    a = trk.track('0001')
+    a = trk.track()
     file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG1221.DVM')
     a.load_dvm_data(file_path)
     return a
@@ -19,7 +19,7 @@ def my_track():
 class TestConstructor():
     
     def test_created(self, my_track):
-        assert my_track.track_number == '0001'
+        assert my_track.track_name == '1221'
         
 class TestTrackLoading():
 

@@ -21,14 +21,6 @@ def my_campaign():
     
     return mc
 
-@pytest.fixture
-def my_track():
-    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG1221.DVM')
-    the_track = trk.track()
-    the_track.load_dvm_data(file_path)
-    
-    return the_track
-
 class TestConstructor():
     
     def test_constructor(self, my_campaign):
@@ -44,13 +36,5 @@ class TestFileIO():
         my_campaign.create_campaign_file()
         assert os.path.exists(my_campaign.filepath) == True
         
-        
-class TestTrackLoading():
 
-    def test_load_dvm_data_file_type(self,my_track):
-        
-        assert my_track.file_type == 'DVM'
-        
-    def test_open_dvm(self, my_track):
-        assert my_track.dvm_data.shape == (5150,3)
 
