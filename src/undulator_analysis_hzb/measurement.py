@@ -152,6 +152,7 @@ class granite_bank_measurement(measurement):
             self.tracks[trac].load_dvm_data(file_path_dvm)
                 
     def read_tracks(self):
+        #TODO pull track reading out from metadata function!
         pass
     
     def save_measurement_group(self,grp):
