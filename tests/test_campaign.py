@@ -21,6 +21,14 @@ def my_campaign():
     
     return mc
 
+@pytest.fixture
+def my_track():
+    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG1221.DVM')
+    the_track = trk.track()
+    the_track.load_dvm_data(file_path)
+    
+    return the_track
+
 class TestConstructor():
     
     def test_constructor(self, my_campaign):
