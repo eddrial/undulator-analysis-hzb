@@ -15,6 +15,9 @@ class Campaign(object):
     data and metadata of a measurement campaign, from component magnet blocks
     through to final device'''
     def __init__(self,filepath,**kwargs):
+        """
+        This is the docstring from today 22.11.2023 hoo hoo! With double quotes!
+        """
         self.filepath = filepath
         
         for key, value in kwargs.items():
@@ -43,7 +46,9 @@ class Campaign(object):
     
     ###I/O functions
     def create_campaign_file(self):
-    
+        """
+        it's a docstring for create_campaign_file
+        """
         try:
             h5.File(self.filepath,'w-')
         except:
