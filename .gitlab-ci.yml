@@ -27,7 +27,7 @@ test-sphinx-docs:
   stage: test
   script:
     - pip install -U sphinx
-    - sphinx-build -b . public
+    - sphinx-build -b html . public
 #    - sphinx-build -M html docs/source docs/build
 
 test-job2:
