@@ -19,6 +19,7 @@ class Campaign(object):
         This is the docstring from today 22.11.2023 hoo hoo! With double quotes!
         """
         self.filepath = filepath
+        """docstring for filepath attribute???"""
         
         for key, value in kwargs.items():
             self.__setattr__(key, value)
@@ -27,19 +28,19 @@ class Campaign(object):
         #setting up multi-level dictionary writing
         self.data_store = {}
     
-        '''        self.structure = {'Component':
-                          {'Ident':
-                           {'Step':
-                            {'State':
-                             {'Measurement':
-                              {'Track':{}
-                               }
-                              }
-                             }
-                            }
-                           }
-                          }
-                          '''
+        # '''        self.structure = {'Component':
+        #                   {'Ident':
+        #                    {'Step':
+        #                     {'State':
+        #                      {'Measurement':
+        #                       {'Track':{}
+        #                        }
+        #                       }
+        #                      }
+        #                     }
+        #                    }
+        #                   }
+        #                   '''
         
         self.structure = {}
     

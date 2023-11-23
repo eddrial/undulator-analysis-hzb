@@ -3,8 +3,8 @@ API
 
 .. autosummary::
     :recursive:
-    :toctree: generated
+    :toctree: _autosummary
+    :template: custom_module_template.rst
     
     undulator_analysis_hzb
-#    undulator_analysis_hzb.campaign
-#    undulator_analysis_hzb.measurement
+    
