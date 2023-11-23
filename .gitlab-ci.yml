@@ -15,6 +15,7 @@ before_script:
   - virtualenv venv
   - source venv/bin/activate
   - pip install .
+  - pip install pytest matplotlib pytest-cov h5py
 
 
 #build-job:
@@ -41,7 +42,6 @@ test-job2:
   script:
     - echo "This job is trying to run pytest"
     - apt-get update -q -y
-    - pip install pytest matplotlib pytest-cov h5py
 #    - pip install matplotlib
     - pip list
     - pwd
