@@ -38,7 +38,7 @@ pages_coverage:
   stage: test
   script:
     - pip install -U sphinx
-    - sphinx-build -M coverage source _build/coverage
+    - sphinx-build -M coverage docs/source _build/coverage
     
   artifacts:
     paths: 
