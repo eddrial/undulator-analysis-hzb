@@ -11,9 +11,7 @@ from undulator_analysis_hzb.measurement import measurement
 import numpy as np
 
 class Campaign(object):
-    '''This is the top level class allowing access to all 
-    data and metadata of a measurement campaign, from component magnet blocks
-    through to final device'''
+    
     def __init__(self,filepath,**kwargs):
         """
         This is the docstring from today 22.11.2023 hoo hoo! With double quotes!
