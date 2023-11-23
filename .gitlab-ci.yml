@@ -42,7 +42,7 @@ pages_coverage:
     
   artifacts:
     paths: 
-      - doc_coverage
+      - _build/coverage
     
 
 test-job2:
