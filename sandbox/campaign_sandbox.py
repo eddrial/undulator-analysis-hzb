@@ -64,6 +64,8 @@ if __name__ == '__main__':
     granite_messbank = ms.Measurement_System("Granite_Messbank")
     granite_messbank.load_hall_calibration_files(x_file, y_file, z_file)
     
+    
+    
     a.add_measurement_system(granite_messbank)
 
     

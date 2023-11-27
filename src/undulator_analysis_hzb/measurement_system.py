@@ -31,6 +31,7 @@ class Measurement_System(object):
     -------------------
     
     """
+    #TODO override equality operator
     def __init__(self,name,**kwargs):
         """
         Initialising a Measurement_System object.
