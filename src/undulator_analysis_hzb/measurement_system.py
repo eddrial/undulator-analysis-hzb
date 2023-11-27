@@ -97,3 +97,19 @@ class Measurement_System(object):
         self.x_calib_senis = np.genfromtxt(x_file)
         self.y_calib_senis = np.genfromtxt(y_file)
         self.z_calib_senis = np.genfromtxt(z_file)
+        
+    def save_measurement_system_group(self,grp):
+        for item in self.__dict__:
+            print(item)
+            if item == 'files':
+                #TODO save filenames
+                pass
+            elif isinstance(self.__getattribute__(item), np.ndarray):
+                grp.create_dataset(item, data = self.__getattribute__(item))
+                #TODO save attributes and axes etc
+            
+            else:
+                print(item)
+                grp.attrs[item] = self.__getattribute__(item)
+                
+            

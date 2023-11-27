@@ -172,6 +172,7 @@ class granite_bank_measurement(measurement):
                 grp.attrs[item] = self.__getattribute__(item)
         
         for track in self.tracks:
+            #are you sure you need to create another group here?
             trk = grp.create_group('{}'.format(track))
             trk.create_dataset('{}'.format(track), data = self.tracks[track].dvm_data)
             #TODO don't forget to build up metadata as attributes
