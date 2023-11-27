@@ -62,29 +62,38 @@ class Measurement_System(object):
             self.__setattr__(key, value)
             
         
-        def load_hall_calibration_files(self,x_file, y_file, z_file):
-            """
-            This function loads hall calibration files for the granite measurement
-            bench. It reads files and assigns the data within the files to 
-            class attributes
+    def load_hall_calibration_files(self,x_file, y_file, z_file):
+        """
+        This function loads hall calibration files for the granite measurement
+        bench. It reads files and assigns the data within the files to 
+        instance variables in the Measurement System Class
+        
+        Parameters
+        ----------
+        x_file : File()
+            File or string object for location of x_calb_senis file.
+        
+        y_file : File()
+            File or string object for location of y_calb_senis file.
             
-            Parameters
-            ----------
-            x_file : File()
-                File or string object for location of x_calb_senis file.
+        z_file : File()
+            File or string object for location of z_calb_senis file.
+        
+        Attributes
+        --------------
+        x_calib_xenis : numpy.ndarray
+            This numpy array holds the Voltage (V) - Field (B) characteristic curve for
+            the X-orientation Hall Probe.
+        y_calib_xenis : numpy.ndarray
+            This numpy array holds the Voltage (V) - Field (B) characteristic curve for
+            the X-orientation Hall Probe.
+        z_calib_xenis : numpy.ndarray
+            This numpy array holds the Voltage (V) - Field (B) characteristic curve for
+            the X-orientation Hall Probe.
             
-            y_file : File()
-                File or string object for location of y_calb_senis file.
-                
-            z_file : File()
-                File or string object for location of z_calb_senis file.
-            
-            New Attributes
-            --------------
-            
-            
-            """
-            self.files = [x_file, y_file, z_file]
-            self.x_calib_senis = np.genfromtxt(x_file)
-            self.y_calib_senis = np.genfromtxt(y_file)
-            self.z_calib_senis = np.genfromtxt(z_file)
+        
+        """
+        self.files = [x_file, y_file, z_file]
+        self.x_calib_senis = np.genfromtxt(x_file)
+        self.y_calib_senis = np.genfromtxt(y_file)
+        self.z_calib_senis = np.genfromtxt(z_file)

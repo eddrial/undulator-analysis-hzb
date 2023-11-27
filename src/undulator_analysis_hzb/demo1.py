@@ -241,7 +241,9 @@ class ExampleClass(object):
         Description of `attr2`.
 
     """
-
+    class_var = 1
+    """int: class variable defined underneath"""
+    
     def __init__(self, param1, param2, param3):
         """Example of docstring on the __init__ method.
 
@@ -308,6 +310,11 @@ class ExampleClass(object):
             The first parameter.
         param2
             The second parameter.
+            
+        Attributes
+        ----------
+        new_ed_param
+            Ed's new Param
 
         Returns
         -------
@@ -315,6 +322,10 @@ class ExampleClass(object):
             True if successful, False otherwise.
 
         """
+        
+        self.new_ed_param
+        """int: parameter included from new function, type specified."""
+        
         return True
 
     def __special__(self):
