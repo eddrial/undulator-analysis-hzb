@@ -56,3 +56,10 @@ class track(object):
         
         if self.file_type == 'h5':
             pass
+        
+    def process_track(self, meas_system):
+        """
+        This function processes a raw track from a measurement bench to a B field.
+        """
+        #TODO How to know if it's a Granite Messbank Track, instead of any track?
+        pass
