@@ -4,6 +4,7 @@ Created on Oct 16, 2023
 @author: oqb
 '''
 import numpy as np
+import scipy.interpolate as interp
 
 class track(object):
     '''
@@ -60,6 +61,25 @@ class track(object):
     def process_track(self, meas_system):
         """
         This function processes a raw track from a measurement bench to a B field.
+        
+        This function creates an interpolation function for the y and z hall probes
+        and calculates the B field. 
+        1st Column of dvm_data is Position (x)
+        2nd column of dvm_data is Voltage from vertical Hall Probe (Vy)
+        3rd column of dvm_data is Voltage from horizontal Hall Probe (Vz).
         """
         #TODO How to know if it's a Granite Messbank Track, instead of any track?
-        pass
+        
+        print('processing....')
+        #create a spline fit function for x/y/z
+        
+        #build new path from spline
+        interpy = interp.CubicSpline(meas_system.y_calib_senis[:,0],meas_system.y_calib_senis[:,1])
+        interpz = interp.CubicSpline(meas_system.z_calib_senis[:,0],meas_system.z_calib_senis[:,1])
+        
+        By = interpy(self.dvm_data[:,1])
+        Bz = interpz(self.dvm_data[:,2])
+        
+        B_processed = np.array([self.dvm_data[:,0],By,Bz])
+        
+        return B_processed
