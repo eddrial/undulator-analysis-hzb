@@ -83,3 +83,15 @@ class track(object):
         B_processed = np.array([self.dvm_data[:,0],By,Bz])
         
         return B_processed
+    
+    def rebase_track(self,x_axis_array):
+        #find indices of unique distances
+        u, c = np.unique(self.dvm_data[:,0], return_index = True)
+        interpDVM1 = interp.CubicSpline(self.dvm_data[c,0],self.dvm_data[c,1])
+        interpDVM2 = interp.CubicSpline(self.dvm_data[c,0],self.dvm_data[c,2])
+        
+        rebase_DVM = np.zeros([x_axis_array.__len__(),2])
+        rebase_DVM[:,0] = interpDVM1(x_axis_array)
+        rebase_DVM[:,1] = interpDVM2(x_axis_array)
+        
+        return rebase_DVM

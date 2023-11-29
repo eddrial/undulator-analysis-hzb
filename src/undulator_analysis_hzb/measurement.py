@@ -184,7 +184,7 @@ class granite_bank_measurement(measurement):
         
         trac = 1222
         
-        #interpolates the central DVM track
+        #interpolates the central DVM track. This should be a function in track.py
         u, c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
         interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[c,0],
                                         self.tracks[trac].dvm_data[c,1])
@@ -200,6 +200,7 @@ class granite_bank_measurement(measurement):
         dvm_x_peaks_centre_ind = int(np.floor((dvm_x_peaks[0].__len__()+1)/2))
         #location of central peak
         x_mid = x_scale[dvm_x_peaks[0][dvm_x_peaks_centre_ind]]
+        x_mid_round = np.round(x_mid,2)
         #find number of periods
         num_periods = dvm_x_peaks[0].__len__()/2
         
@@ -208,22 +209,41 @@ class granite_bank_measurement(measurement):
         period_len_calc = small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[period_power]
         #
         
-        
-        print('to here')
         #create a nice regular grid to interpolate on
+        period_len_round = np.round(period_len_calc,1)
         #centre - period_length*((periods/2)+6)
+        grid_min = x_mid_round - period_len_round*((num_periods/2)+6)
+        grid_max = x_mid_round + period_len_round*((num_periods/2)+6)
         #check min is within all ranges
         #check max is within all ranges
+        while grid_min < np.min(mins) and grid_max > np.max(maxs):
+            grid_min += period_len_round
+            grid_max -= period_len_round
+            
+        #create B array
+        main_x_range = np.arange(grid_min, grid_max, period_len_calc/20)
+        DVM_array = np.zeros([main_x_range.__len__(),1,3,2])
+        self.B_array = np.zeros([main_x_range.__len__(),1,3,2]) #calculate 1 and 3
         #then do interpolations!
+        i = 0
         #for track in tracks
+        for trac in self.tracks:
+            #rebase measurement
+            DVM_array[:,0,i,:] = self.tracks[trac].rebase_track(main_x_range)
+            
+            i+=1
         #create B fields
+        self.B_array[:,:,:,0] = interpy(DVM_array[:,:,:,0])
+        self.B_array[:,:,:,1] = interpy(DVM_array[:,:,:,1])
+        print('to here')
+        
         
         
         #interpolate B fields and produce single B array
         #save B array as attribute of self
         
         #assign 'processed' attribute as True
-        
+        self.processed = True
         
         
     #Saving stuff to measurement group
