@@ -7,8 +7,10 @@ Created on Oct 26, 2023
 import undulator_analysis_hzb.campaign as cmp
 import undulator_analysis_hzb.track as trk
 import undulator_analysis_hzb.measurement as mes
+import undulator_analysis_hzb.measurement_system as ms
 import importlib.resources
 from undulator_analysis_hzb.measurement import granite_bank_measurement
+import numpy as np
 
 
 if __name__ == '__main__':
@@ -46,15 +48,34 @@ if __name__ == '__main__':
     print (b.name)
     b.define_logfile(lfile_path)
     
+    
+    
+    x_file = importlib.resources.files('undulator_analysis_hzb').joinpath('../../resources/x_calib_senis112_17.spl')
+    y_file = importlib.resources.files('undulator_analysis_hzb').joinpath('../../resources/y_calib_senis112_17.spl')
+    z_file = importlib.resources.files('undulator_analysis_hzb').joinpath('../../resources/z_calib_senis112_17.spl')
+    
+    granite_messbank = ms.Measurement_System("Granite_Messbank")
+    granite_messbank.load_hall_calibration_files(x_file, y_file, z_file)
+    
     b.read_logfile_metadata()
     
     b.add_component('A_Component')
     b.add_ident('An_Ident')
     b.add_state('A_State')
     b.add_step('Step_X')
-    b.add_measurement_system('Test_Bank')
+    b.add_measurement_system(granite_messbank)
     
+    b.process_measurement()
     a.add_measurement(b)
+    
+    
+#    a.add_measurement_system(granite_messbank)
 
+    proc1221 = np.genfromtxt('D:\From Farnsworth\Bench\Measurements\HP-FIELD1221.DAT',skip_header = 1)
+    proc1222 = np.genfromtxt('D:\From Farnsworth\Bench\Measurements\HP-FIELD1222.DAT',skip_header = 1)
+    proc1223 = np.genfromtxt('D:\From Farnsworth\Bench\Measurements\HP-FIELD1223.DAT',skip_header = 1)
+    
+    
     a.save_campaign_file()
+    a.save_measurement_system_to_file()
     print(b.logfile)

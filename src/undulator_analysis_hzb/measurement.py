@@ -8,6 +8,8 @@ import numpy as np
 import undulator_analysis_hzb.track as trk
 import datetime as dt
 from tarfile import grp
+import scipy.interpolate as interp
+from scipy import signal
 
 class measurement(object):
     '''
@@ -20,14 +22,18 @@ class measurement(object):
         self.name = measurement_name
         for key, value in kwargs.items():
             self.__setattr__(key, value)
+            
+        self.measurement_system = None
         
-        print('a useless line that is different again')
+        self.processed = False # attribute to quickly indicate if base data has been processed (Volts to B)
+        
+        self.analysed = False # attribute to quickly indicate if processed data has been post-processed (1st, 2nd integrals, phase etc)
         
     def __repr__(self):
         return 'Measurement()'
     
     def __str__(self):
-        #TODO tidy up pront command
+        #TODO tidy up print command
         return 'Measurement: {}'.format(self.name)
 
     def add_component(self,component):
@@ -84,7 +90,7 @@ class measurement(object):
 class granite_bank_measurement(measurement):
     def __init__(self, measurement_name, **kwargs):
         super(granite_bank_measurement,self).__init__(measurement_name)
-        self.name = measurement_name
+        #self.name = measurement_name
         
         for key, value in kwargs.items():
             self.__setattr__(key, value)
@@ -152,8 +158,95 @@ class granite_bank_measurement(measurement):
             self.tracks[trac].load_dvm_data(file_path_dvm)
                 
     def read_tracks(self):
+        #TODO pull track reading out from metadata function!
         pass
     
+    def process_measurement(self):
+        
+        #create interpolation of y,z calib curves
+        interpy = interp.CubicSpline(self.measurement_system.y_calib_senis[:,0],
+                                     self.measurement_system.y_calib_senis[:,1])
+        interpz = interp.CubicSpline(self.measurement_system.z_calib_senis[:,0],
+                                     self.measurement_system.z_calib_senis[:,1])
+        
+        
+        #from collection of B fields,find the maximum 'min',
+        mins = np.array([])
+        maxs = np.array([])
+        for trac in self.tracks:
+            mins = np.append(mins, np.min(self.tracks[trac].dvm_data[:,0]))
+            maxs = np.append(maxs, np.max(self.tracks[trac].dvm_data[:,0]))
+            
+        print ('mins: {} \n maxs: {}'.format(mins,maxs))
+        #and the minimum 'max' of our x range
+        
+        #find central track (or nominate primary track)
+        
+        trac = 1222
+        
+        #interpolates the central DVM track. This should be a function in track.py
+        u, c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
+        interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[c,0],
+                                        self.tracks[trac].dvm_data[c,1])
+        small_step = 0.05
+        x_scale = np.arange(np.min(self.tracks[trac].dvm_data[:,0]),
+                            np.max(self.tracks[trac].dvm_data[:,0]),
+                            small_step)
+        dvm_x = interpdvmy(x_scale)
+        
+        #find peaks
+        dvm_x_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.95*np.max(dvm_x))
+        #find central peak
+        dvm_x_peaks_centre_ind = int(np.floor((dvm_x_peaks[0].__len__()+1)/2))
+        #location of central peak
+        x_mid = x_scale[dvm_x_peaks[0][dvm_x_peaks_centre_ind]]
+        x_mid_round = np.round(x_mid,2)
+        #find number of periods
+        num_periods = dvm_x_peaks[0].__len__()/2
+        
+        #find undulator period length
+        period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
+        period_len_calc = small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[period_power]
+        #
+        
+        #create a nice regular grid to interpolate on
+        period_len_round = np.round(period_len_calc,1)
+        #centre - period_length*((periods/2)+6)
+        grid_min = x_mid_round - period_len_round*((num_periods/2)+6)
+        grid_max = x_mid_round + period_len_round*((num_periods/2)+6)
+        #check min is within all ranges
+        #check max is within all ranges
+        while grid_min < np.min(mins) and grid_max > np.max(maxs):
+            grid_min += period_len_round
+            grid_max -= period_len_round
+            
+        #create B array
+        main_x_range = np.arange(grid_min, grid_max, period_len_calc/20)
+        DVM_array = np.zeros([main_x_range.__len__(),1,3,2])
+        self.B_array = np.zeros([main_x_range.__len__(),1,3,2]) #calculate 1 and 3
+        #then do interpolations!
+        i = 0
+        #for track in tracks
+        for trac in self.tracks:
+            #rebase measurement
+            DVM_array[:,0,i,:] = self.tracks[trac].rebase_track(main_x_range)
+            
+            i+=1
+        #create B fields
+        self.B_array[:,:,:,0] = interpy(DVM_array[:,:,:,0])
+        self.B_array[:,:,:,1] = interpy(DVM_array[:,:,:,1])
+        print('to here')
+        
+        
+        
+        #interpolate B fields and produce single B array
+        #save B array as attribute of self
+        
+        #assign 'processed' attribute as True
+        self.processed = True
+        
+        
+    #Saving stuff to measurement group
     def save_measurement_group(self,grp):
         for item in self.__dict__:
             if item == 'measurement_system':
@@ -169,6 +262,7 @@ class granite_bank_measurement(measurement):
                 grp.attrs[item] = self.__getattribute__(item)
         
         for track in self.tracks:
+            #are you sure you need to create another group here?
             trk = grp.create_group('{}'.format(track))
             trk.create_dataset('{}'.format(track), data = self.tracks[track].dvm_data)
             #TODO don't forget to build up metadata as attributes

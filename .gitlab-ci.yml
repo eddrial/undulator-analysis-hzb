@@ -15,6 +15,7 @@ before_script:
   - virtualenv venv
   - source venv/bin/activate
   - pip install .
+  - pip install pytest matplotlib pytest-cov h5py scipy
 
 
 #build-job:
@@ -23,10 +24,26 @@ before_script:
 #    - echo "Hello, $GITLAB_USER_LOGIN!"
 
 
-#test-job1:
-#  stage: test
-#  script:
-#    - echo "This job tests something"
+pages:
+  stage: test
+  script:
+    - pip install -U sphinx
+    - sphinx-build -b html docs/source public
+#    - sphinx-build -M html docs/source public
+  artifacts: 
+    paths:
+      - public
+
+pages_coverage:
+  stage: test
+  script:
+    - pip install -U sphinx
+    - sphinx-build -M coverage docs/source _build/coverage
+    
+  artifacts:
+    paths: 
+      - _build/coverage
+    
 
 test-job2:
   stage: test
@@ -36,7 +53,6 @@ test-job2:
   script:
     - echo "This job is trying to run pytest"
     - apt-get update -q -y
-    - pip install pytest matplotlib pytest-cov h5py
 #    - pip install matplotlib
     - pip list
     - pwd
