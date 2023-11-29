@@ -15,6 +15,7 @@ before_script:
   - virtualenv venv
   - source venv/bin/activate
   - pip install .
+  - pip install pytest matplotlib pytest-cov h5py scipy
 
 
 #build-job:
@@ -23,10 +24,26 @@ before_script:
 #    - echo "Hello, $GITLAB_USER_LOGIN!"
 
 
-#test-job1:
-#  stage: test
-#  script:
-#    - echo "This job tests something"
+pages:
+  stage: test
+  script:
+    - pip install -U sphinx
+    - sphinx-build -b html docs/source public
+#    - sphinx-build -M html docs/source public
+  artifacts: 
+    paths:
+      - public
+
+pages_coverage:
+  stage: test
+  script:
+    - pip install -U sphinx
+    - sphinx-build -M coverage docs/source _build/coverage
+    
+  artifacts:
+    paths: 
+      - _build/coverage
+    
 
 test-job2:
   stage: test
@@ -36,15 +53,18 @@ test-job2:
   script:
     - echo "This job is trying to run pytest"
     - apt-get update -q -y
-    - pip install pytest matplotlib pytest-cov
 #    - pip install matplotlib
     - pip list
     - pwd
+    - ls
+    - ls tests/resources
+    - ls venv/lib/python3.10/site-packages/undulator_analysis_hzb/
+    - cp -r tests venv/lib/python3.10/
+    - ls /builds/eddrial/undulator_analysis_hzb/venv/lib/python3.10/site-packages/undulator_analysis_hzb/../../tests/resources/
 #    - pytest --cov undulator_analysis_hzb --cov-report term --cov-report xml:coverage/cobertura-coverage.xml
 #let's simplify
     - pytest --junitxml=report.xml --cov=undulator_analysis_hzb --cov-report term --cov-report xml:coverage.xml
     - coverage xml
-
     #modify cobertura xml to replace filename route
 #    - sed -i 's=<source>/builds/eddrial/undulator_analysis_hzb</source>=<source>./</source>=g' coverage/cobertura-coverage.xml
     - sed -i 's=venv/lib/python3.10/site-packages/=src/=g' coverage.xml
