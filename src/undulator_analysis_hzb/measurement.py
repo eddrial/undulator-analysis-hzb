@@ -257,6 +257,10 @@ class granite_bank_measurement(measurement):
                 pass
             elif item == 'measurement_timestamp':
                 pass
+            #save the B_array data
+            elif item == 'B_array':
+                grp.create_dataset('{}'.format(item), data = self.__getattribute__('B_array'))
+                grp[item].dims[0].label = 'x'
             else:
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)
