@@ -73,8 +73,7 @@ class Campaign(object):
                     for step in self.data_store[component][ident].keys():
                         for state in self.data_store[component][ident][step].keys():
                             for meas in self.data_store[component][ident][step][state].keys():
-                                #create function append measurement to h5
-                                grp = f.create_group('{}/{}/{}/{}/{}'.format(self.campaign_name,
+                                grp = f.require_group('{}/{}/{}/{}/{}'.format(self.campaign_name,
                                                                 component,
                                                                 step,
                                                                 state,
@@ -84,7 +83,7 @@ class Campaign(object):
     def save_measurement_system_to_file(self):
         with h5.File(self.filepath, 'a') as f:
             for meas_sys in self.measurement_systems:
-                grp = f.create_group('Measurement_Systems/{}'.format(meas_sys))
+                grp = f.require_group('Measurement_Systems/{}'.format(meas_sys))
                 self.measurement_systems[meas_sys].save_measurement_system_group(grp)
         
     ### Adding and Manipulation of Measurement objects to Campaign
