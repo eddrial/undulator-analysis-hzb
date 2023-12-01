@@ -124,6 +124,10 @@ class granite_bank_measurement(measurement):
                 self.x_velocity = float(loglines[line+5].split()[-1])
                 self.x_return_velocity = float(loglines[line+6].split()[-1])
                 self.x_unit = 'mm'
+                
+                #rescue divide by zero errors when making scales
+                if float(self.x_step) == 0:
+                    self.x_step =1
             
             if loglines[line][0:17] == 'Y AXIS  Parameter':
                 self.y_start = float(loglines[line+1].split()[-1])
@@ -133,6 +137,10 @@ class granite_bank_measurement(measurement):
                 self.y_return_velocity = float(loglines[line+6].split()[-1])
                 self.y_unit = 'mm'
                 
+                #rescue divide by zero errors when making scales
+                if float(self.y_step) == 0:
+                    self.y_step =1
+                
             if loglines[line][0:17] == 'Z AXIS  Parameter':
                 self.z_start = float(loglines[line+1].split()[-1])
                 self.z_end = float(loglines[line+2].split()[-1])
@@ -141,6 +149,9 @@ class granite_bank_measurement(measurement):
                 self.z_return_velocity = float(loglines[line+6].split()[-1])
                 self.z_unit = 'mm'
                 
+                #rescue divide by zero errors when making scales
+                if float(self.z_step) == 0:
+                    self.z_step =1
             if loglines[line][0:16] == 'Pitch  Parameter':
                 self.pitch_start = float(loglines[line+1].split()[-1])
                 self.pitch_end = float(loglines[line+2].split()[-1])
@@ -221,15 +232,15 @@ class granite_bank_measurement(measurement):
             grid_max -= period_len_round
             
         #create B array
-        main_x_range = np.arange(grid_min, grid_max, period_len_calc/20)
-        DVM_array = np.zeros([main_x_range.__len__(),1,3,2])
-        self.B_array = np.zeros([main_x_range.__len__(),1,3,2]) #calculate 1 and 3
+        self.main_x_range = np.arange(grid_min, grid_max, period_len_calc/20)
+        DVM_array = np.zeros([self.main_x_range.__len__(),1,3,2])
+        self.B_array = np.zeros([self.main_x_range.__len__(),1,3,2]) #calculate 1 and 3
         #then do interpolations!
         i = 0
         #for track in tracks
         for trac in self.tracks:
             #rebase measurement
-            DVM_array[:,0,i,:] = self.tracks[trac].rebase_track(main_x_range)
+            DVM_array[:,0,i,:] = self.tracks[trac].rebase_track(self.main_x_range)
             
             i+=1
         #create B fields
@@ -257,6 +268,12 @@ class granite_bank_measurement(measurement):
                 pass
             elif item == 'measurement_timestamp':
                 pass
+            #save the B_array data
+            elif item == 'B_array':
+                #add dataset
+                grp.create_dataset('{}'.format(item), data = self.__getattribute__(item))
+                grp[item].attrs['unit'] = 'T'
+                
             else:
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)
@@ -271,8 +288,46 @@ class granite_bank_measurement(measurement):
             
         print(grp)
     
-    
-    
+        if 'B_array' in grp:
+            #append dimensions and attributes
+            
+            #create x_axis dataset
+            grp.create_dataset('x_axis', data = self.main_x_range)
+            grp['x_axis'].make_scale('Longitudinal Axis')
+            grp['x_axis'].attrs['unit'] = 'mm'
+            
+            #attach x-axis
+            grp['B_array'].dims[0].label = 'x'
+            grp['B_array'].dims[0].attach_scale(grp['x_axis'])
+            
+            #create y_axis dataset
+            grp.create_dataset('y_axis', data = np.linspace(self.y_start, self.y_end, int(1+(self.y_end-self.y_start)/self.y_step)))
+            grp['y_axis'].make_scale('Vertical Axis')
+            grp['y_axis'].attrs['unit'] = 'mm'
+            
+            #attach y-axis
+            grp['B_array'].dims[1].label = 'y'
+            grp['B_array'].dims[1].attach_scale(grp['y_axis'])
+            
+            #create z_axis dataset
+            grp.create_dataset('z_axis', data = np.linspace(self.z_start, self.z_end, int(1+(self.z_end-self.z_start)/self.z_step)))
+            grp['z_axis'].make_scale('Transverse Axis')
+            grp['z_axis'].attrs['unit'] = 'mm'
+            
+            #attach z-axis
+            grp['B_array'].dims[2].label = 'z'
+            grp['B_array'].dims[2].attach_scale(grp['z_axis'])
+            
+            #create B_orientation dataset
+            grp.create_dataset('B_orientation', data = ['By', 'Bz'])
+            grp['B_orientation'].make_scale('B_orientation')
+            
+            #attach B_orientation
+            grp['B_array'].dims[3].label = 'B'
+            grp['B_array'].dims[3].attach_scale(grp['B_orientation'])
+            
+            
+            
 ##area for custom exception
 class IncompleteMetadataError(Exception):
     def __init__(self,message):
