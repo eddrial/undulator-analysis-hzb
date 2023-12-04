@@ -13,11 +13,17 @@ from scipy import signal
 
 class measurement(object):
     '''
-    classdocs
+    This class contains all of the data of a 'measurement', and the methods to analyse and summarise the measurement.
+    
+    
     '''
     def __init__(self, measurement_name, **kwargs):
         '''
-        Constructor
+        The constructor method.
+        
+        Variables
+        ---------
+        measurement_name (str)
         '''
         self.name = measurement_name
         for key, value in kwargs.items():
