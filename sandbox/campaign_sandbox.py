@@ -71,9 +71,9 @@ if __name__ == '__main__':
     
 #    a.add_measurement_system(granite_messbank)
 
-    proc1221 = np.genfromtxt('D:\From Farnsworth\Bench\Measurements\HP-FIELD1221.DAT',skip_header = 1)
-    proc1222 = np.genfromtxt('D:\From Farnsworth\Bench\Measurements\HP-FIELD1222.DAT',skip_header = 1)
-    proc1223 = np.genfromtxt('D:\From Farnsworth\Bench\Measurements\HP-FIELD1223.DAT',skip_header = 1)
+    proc1221 = np.genfromtxt('HP-FIELD1221.DAT',skip_header = 1)
+    proc1222 = np.genfromtxt('HP-FIELD1222.DAT',skip_header = 1)
+    proc1223 = np.genfromtxt('HP-FIELD1223.DAT',skip_header = 1)
     
     
     a.save_campaign_file()
