@@ -311,6 +311,88 @@ class granite_bank_measurement(measurement):
         
         return self.B_array, self.main_x_range, self.processed
         
+    def analyse_measurement(self, 
+                            calc_F = True, 
+                            calc_S = True,
+                            calc_T = True,
+                            calc_Phi = True):
+        """An instance method to analyse processed B Fields.
+        
+        This method is a collection of other methods to analyse the 
+        measured B field and produce:
+        
+        First Field Integrals
+        Second Field Integrals
+        Trajectory
+        Phase Error  
+        
+        Parameters
+        ----------
+        calc_F : bool
+            A boolean switch to call the first field integral calculation
+        calc_F : bool
+            A boolean switch to call the second field integral calculation
+        calc_F : bool
+            A boolean switch to call the trajectory calculation
+        calc_Phi : bool
+            A boolean switch to call the phase error calculation   
+            
+        Returns
+        -------
+        self.analysed : bool
+            A boolean to identify if the measurement has been 'fully' analysed
+        """
+        
+        #switch to calculate first integral
+        if calc_F == True:
+            self.calculate_I1()
+            
+        if calc_S == True:
+            #TODO self.calculate_I2()
+            self.calculate_I2()
+            
+        if calc_T == True:
+            #TODO self.calculate_trajectory()
+            pass
+        
+        if calc_Phi == True:
+            #TODO self.calculate_phase_error()
+            pass
+        
+        if np.all([calc_F, calc_S, calc_T, calc_Phi] ) == True:
+            self.analysed = True
+        
+        return self.analysed
+    
+    def calculate_I1(self):
+        """An instance method to calculate the first integral from I1 array.
+        
+        This basically then a wrapper for numpy.cumsum.
+        
+        Returns
+        -------
+        self.i2 : np.ndarray
+            The second integral array. The same shape as B_array
+        """
+        print('I am calculating I2')
+        self.I1 = np.cumsum(self.B_array[:,0,:,:], axis = 0)
+        
+        return self.I1
+        
+    def calculate_I2(self):
+        """An instance method to calculate the first integral from B_array.
+        
+        This basically then a wrapper for numpy.cumsum.
+        
+        Returns
+        -------
+        self.i1 : np.ndarray
+            The first integral array. The same shape as B_array
+        """
+        print('I am calculating I1')
+        self.I2 = np.cumsum(self.I1[:,0,:,:], axis = 0)
+        
+        return self.I2
         
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):

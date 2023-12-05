@@ -66,6 +66,7 @@ if __name__ == '__main__':
     b.add_measurement_system(granite_messbank)
     
     b.process_measurement()
+    b.analyse_measurement()
     a.add_measurement(b)
     
     
