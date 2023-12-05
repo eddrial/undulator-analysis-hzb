@@ -94,12 +94,42 @@ class measurement(object):
         
     
 class granite_bank_measurement(measurement):
+    """
+    A class to describe measurements from the HZB Granite Messbank.
+    """
+    
     def __init__(self, measurement_name, **kwargs):
+        """Constructor for granite_bank_measurement.
+        
+        Date 5.12.23:
+        
+        The Granite Messbank in the the Schwerlasthalle is the primary measurement
+        system for 3D field mapping at Helmholtz-Zentrum Berlin. It takes a measurement
+        along the longitudinal axis X, and that axis can be positioned in the 
+        vertical (Y) and transverse (Z) directions. These are relative positions.
+        
+        Parameters
+        ----------
+        measurement : `measurement`
+            This class is subclassed from `measurement`
+            
+        Attributes
+        ----------
+        measurement_name : str
+            The name of the measurement. Often a number as a string.
+            
+        Other Parameters
+        ----------------
+        measurement_timestamp : datetime object
+            The timestamp of the measurement.
+        """
         super(granite_bank_measurement,self).__init__(measurement_name)
         #self.name = measurement_name
         
         for key, value in kwargs.items():
             self.__setattr__(key, value)
+    
+    #TODO Technical Details in init
     
     def __repr__(self):
         return 'GraniteBankMasurement()'
@@ -179,6 +209,23 @@ class granite_bank_measurement(measurement):
         pass
     
     def process_measurement(self):
+        """An instance method to process the raw DVM data to B Fields
+        
+        Expanded text. 
+        
+        Modifies main_x_range, B_array and processed
+        
+        Uses tracks and measurement_system
+        
+        Returns
+        -------
+        self.B_array : numpy.ndarray
+            The processed DVM array as a B_array.
+        self.main_x_range : numpy.ndarray
+            The main x range of the processed B array.
+        self.processed : bool
+            The 'has this measurement been processed' variable.
+        """
         
         #create interpolation of y,z calib curves
         interpy = interp.CubicSpline(self.measurement_system.y_calib_senis[:,0],
@@ -251,7 +298,7 @@ class granite_bank_measurement(measurement):
             i+=1
         #create B fields
         self.B_array[:,:,:,0] = interpy(DVM_array[:,:,:,0])
-        self.B_array[:,:,:,1] = interpy(DVM_array[:,:,:,1])
+        self.B_array[:,:,:,1] = interpz(DVM_array[:,:,:,1])
         print('to here')
         
         
@@ -261,6 +308,8 @@ class granite_bank_measurement(measurement):
         
         #assign 'processed' attribute as True
         self.processed = True
+        
+        return self.B_array, self.main_x_range, self.processed
         
         
     #Saving stuff to measurement group

@@ -64,4 +64,5 @@ html_theme = 'pydata_sphinx_theme'
 html_static_path = ['_static']
 
 #flag settings?
-napoleon_use_ivar = True
+napoleon_use_ivar = False
+napoleon_google_docstring = False
