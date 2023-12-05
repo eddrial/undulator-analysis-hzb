@@ -13,11 +13,17 @@ from scipy import signal
 
 class measurement(object):
     '''
-    classdocs
+    This class contains all of the data of a 'measurement', and the methods to analyse and summarise the measurement.
+    
+    
     '''
     def __init__(self, measurement_name, **kwargs):
         '''
-        Constructor
+        The constructor method.
+        
+        Variables
+        ---------
+        measurement_name (str)
         '''
         self.name = measurement_name
         for key, value in kwargs.items():
@@ -88,12 +94,42 @@ class measurement(object):
         
     
 class granite_bank_measurement(measurement):
+    """
+    A class to describe measurements from the HZB Granite Messbank.
+    """
+    
     def __init__(self, measurement_name, **kwargs):
+        """Constructor for granite_bank_measurement.
+        
+        Date 5.12.23:
+        
+        The Granite Messbank in the the Schwerlasthalle is the primary measurement
+        system for 3D field mapping at Helmholtz-Zentrum Berlin. It takes a measurement
+        along the longitudinal axis X, and that axis can be positioned in the 
+        vertical (Y) and transverse (Z) directions. These are relative positions.
+        
+        Parameters
+        ----------
+        measurement : `measurement`
+            This class is subclassed from `measurement`
+            
+        Attributes
+        ----------
+        measurement_name : str
+            The name of the measurement. Often a number as a string.
+            
+        Other Parameters
+        ----------------
+        measurement_timestamp : datetime object
+            The timestamp of the measurement.
+        """
         super(granite_bank_measurement,self).__init__(measurement_name)
         #self.name = measurement_name
         
         for key, value in kwargs.items():
             self.__setattr__(key, value)
+    
+    #TODO Technical Details in init
     
     def __repr__(self):
         return 'GraniteBankMasurement()'
@@ -173,6 +209,23 @@ class granite_bank_measurement(measurement):
         pass
     
     def process_measurement(self):
+        """An instance method to process the raw DVM data to B Fields
+        
+        Expanded text. 
+        
+        Modifies main_x_range, B_array and processed
+        
+        Uses tracks and measurement_system
+        
+        Returns
+        -------
+        self.B_array : numpy.ndarray
+            The processed DVM array as a B_array.
+        self.main_x_range : numpy.ndarray
+            The main x range of the processed B array.
+        self.processed : bool
+            The 'has this measurement been processed' variable.
+        """
         
         #create interpolation of y,z calib curves
         interpy = interp.CubicSpline(self.measurement_system.y_calib_senis[:,0],
@@ -245,7 +298,7 @@ class granite_bank_measurement(measurement):
             i+=1
         #create B fields
         self.B_array[:,:,:,0] = interpy(DVM_array[:,:,:,0])
-        self.B_array[:,:,:,1] = interpy(DVM_array[:,:,:,1])
+        self.B_array[:,:,:,1] = interpz(DVM_array[:,:,:,1])
         print('to here')
         
         
@@ -255,6 +308,8 @@ class granite_bank_measurement(measurement):
         
         #assign 'processed' attribute as True
         self.processed = True
+        
+        return self.B_array, self.main_x_range, self.processed
         
         
     #Saving stuff to measurement group
@@ -270,8 +325,11 @@ class granite_bank_measurement(measurement):
                 pass
             #save the B_array data
             elif item == 'B_array':
-                #add dataset
-                grp.create_dataset('{}'.format(item), data = self.__getattribute__(item))
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
                 grp[item].attrs['unit'] = 'T'
                 
             else:
@@ -280,8 +338,11 @@ class granite_bank_measurement(measurement):
         
         for track in self.tracks:
             #are you sure you need to create another group here?
-            trk = grp.create_group('{}'.format(track))
-            trk.create_dataset('{}'.format(track), data = self.tracks[track].dvm_data)
+            trk = grp.require_group('{}'.format(track))
+            trk.require_dataset('{}'.format(track), shape = self.tracks[track].dvm_data.shape, dtype = self.tracks[track].dvm_data.dtype)
+            
+            trk[str(track)][...] = self.tracks[track].dvm_data
+            trk[str(track)].attrs['unit'] = 'V'
             #TODO don't forget to build up metadata as attributes
             
             print (trk)
@@ -292,7 +353,8 @@ class granite_bank_measurement(measurement):
             #append dimensions and attributes
             
             #create x_axis dataset
-            grp.create_dataset('x_axis', data = self.main_x_range)
+            grp.require_dataset('x_axis', shape = self.main_x_range.shape, dtype = self.main_x_range.dtype)
+            grp['x_axis'][...] = self.main_x_range
             grp['x_axis'].make_scale('Longitudinal Axis')
             grp['x_axis'].attrs['unit'] = 'mm'
             
@@ -301,7 +363,9 @@ class granite_bank_measurement(measurement):
             grp['B_array'].dims[0].attach_scale(grp['x_axis'])
             
             #create y_axis dataset
-            grp.create_dataset('y_axis', data = np.linspace(self.y_start, self.y_end, int(1+(self.y_end-self.y_start)/self.y_step)))
+            yax = np.linspace(self.y_start, self.y_end, int(1+(self.y_end-self.y_start)/self.y_step))
+            grp.require_dataset('y_axis', shape = yax.shape, dtype = yax.dtype)
+            grp['y_axis'][...] = yax
             grp['y_axis'].make_scale('Vertical Axis')
             grp['y_axis'].attrs['unit'] = 'mm'
             
@@ -310,7 +374,9 @@ class granite_bank_measurement(measurement):
             grp['B_array'].dims[1].attach_scale(grp['y_axis'])
             
             #create z_axis dataset
-            grp.create_dataset('z_axis', data = np.linspace(self.z_start, self.z_end, int(1+(self.z_end-self.z_start)/self.z_step)))
+            zax = np.linspace(self.z_start, self.z_end, int(1+(self.z_end-self.z_start)/self.z_step))
+            grp.require_dataset('z_axis', shape = zax.shape, dtype = zax.dtype)
+            grp['z_axis'][...] = zax
             grp['z_axis'].make_scale('Transverse Axis')
             grp['z_axis'].attrs['unit'] = 'mm'
             
@@ -319,13 +385,16 @@ class granite_bank_measurement(measurement):
             grp['B_array'].dims[2].attach_scale(grp['z_axis'])
             
             #create B_orientation dataset
-            grp.create_dataset('B_orientation', data = ['By', 'Bz'])
-            grp['B_orientation'].make_scale('B_orientation')
-            
-            #attach B_orientation
-            grp['B_array'].dims[3].label = 'B'
-            grp['B_array'].dims[3].attach_scale(grp['B_orientation'])
-            
+            # Bax = np.array(['By', 'Bz'], dtype = object)
+            # grp.require_dataset('B_orientation', shape = (2,), dtype = object)
+            # grp['B_orientation'][...] = Bax
+            # grp['B_orientation'].make_scale('B_orientation')
+            #
+            # #attach B_orientation
+            # grp['B_array'].dims[3].label = 'B'
+            # grp['B_array'].dims[3].attach_scale(grp['B_orientation'])
+            #
+
             
             
 ##area for custom exception

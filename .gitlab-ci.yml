@@ -28,6 +28,7 @@ pages:
   stage: test
   script:
     - pip install -U sphinx
+    - pip install pydata-sphinx-theme
     - sphinx-build -b html docs/source public
 #    - sphinx-build -M html docs/source public
   artifacts: 

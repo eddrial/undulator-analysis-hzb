@@ -23,13 +23,6 @@ class Measurement_System(object):
     The Measurement System Class describes a measurement system
     including all relevant motion control and sensor details.
     The class enables reading/writing to a main hdf5 datafile.
-    
-    Attributes
-    ----------
-    
-    Optional Attributes
-    -------------------
-    
     """
     #TODO override equality operator
     def __init__(self,name,**kwargs):
@@ -41,10 +34,12 @@ class Measurement_System(object):
         name : str
             This is the common name of the measurement device.
         
+        Examples
+        --------
+        This is text for an example
         
-        
-        Optional Parameters
-        -------------------
+        Other Parameters
+        ----------------
         x_calib_senis : numpy.ndarray
             a numpy array relating voltage to magnetic field in the x direction.
         y_calib_senis : numpy.ndarray
@@ -53,8 +48,6 @@ class Measurement_System(object):
             a numpy array relating voltage to magnetic field in the z direction.
         
         
-        Examples
-        --------
         
         """
         self.name = name
@@ -81,7 +74,7 @@ class Measurement_System(object):
             File or string object for location of z_calb_senis file.
         
         Attributes
-        --------------
+        ----------
         x_calib_xenis : numpy.ndarray
             This numpy array holds the Voltage (V) - Field (B) characteristic curve for
             the X-orientation Hall Probe.
@@ -92,6 +85,10 @@ class Measurement_System(object):
             This numpy array holds the Voltage (V) - Field (B) characteristic curve for
             the X-orientation Hall Probe.
             
+        Returns
+        -------
+        None
+            
         
         """
         self.files = [x_file, y_file, z_file]
@@ -99,6 +96,7 @@ class Measurement_System(object):
         self.y_calib_senis = np.genfromtxt(y_file)
         self.z_calib_senis = np.genfromtxt(z_file)
         
+
     def save_measurement_system_group(self,grp):
         for item in self.__dict__:
             print(item)
