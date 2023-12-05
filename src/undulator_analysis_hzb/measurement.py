@@ -285,7 +285,7 @@ class granite_bank_measurement(measurement):
             grid_max -= period_len_round
             
         #create B array
-        self.main_x_range = np.arange(grid_min, grid_max, period_len_calc/20)
+        self.main_x_range = np.arange(grid_min, grid_max, period_len_calc/60)
         DVM_array = np.zeros([self.main_x_range.__len__(),1,3,2])
         self.B_array = np.zeros([self.main_x_range.__len__(),1,3,2]) #calculate 1 and 3
         #then do interpolations!
@@ -374,8 +374,8 @@ class granite_bank_measurement(measurement):
         self.i2 : np.ndarray
             The second integral array. The same shape as B_array
         """
-        print('I am calculating I2')
-        self.I1 = np.cumsum(self.B_array[:,0,:,:], axis = 0)
+        print('I am calculating I1')
+        self.I1 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.B_array[:,:,:,:], axis = 0)
         
         return self.I1
         
@@ -389,8 +389,8 @@ class granite_bank_measurement(measurement):
         self.i1 : np.ndarray
             The first integral array. The same shape as B_array
         """
-        print('I am calculating I1')
-        self.I2 = np.cumsum(self.I1[:,0,:,:], axis = 0)
+        print('I am calculating I2')
+        self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
         
         return self.I2
         
