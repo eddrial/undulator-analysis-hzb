@@ -10,6 +10,7 @@ import datetime as dt
 from tarfile import grp
 import scipy.interpolate as interp
 from scipy import signal
+from scipy import constants as cnst
 
 class measurement(object):
     '''
@@ -285,7 +286,7 @@ class granite_bank_measurement(measurement):
             grid_max -= period_len_round
             
         #create B array
-        self.main_x_range = np.arange(grid_min, grid_max, period_len_calc/60)
+        self.main_x_range = np.arange(grid_min, grid_max, period_len_calc/600)
         DVM_array = np.zeros([self.main_x_range.__len__(),1,3,2])
         self.B_array = np.zeros([self.main_x_range.__len__(),1,3,2]) #calculate 1 and 3
         #then do interpolations!
@@ -348,10 +349,10 @@ class granite_bank_measurement(measurement):
             self.calculate_I1()
             
         if calc_S == True:
-            #TODO self.calculate_I2()
             self.calculate_I2()
             
         if calc_T == True:
+            self.calculate_trajectory()
             #TODO self.calculate_trajectory()
             pass
         
@@ -367,7 +368,7 @@ class granite_bank_measurement(measurement):
     def calculate_I1(self):
         """An instance method to calculate the first integral from I1 array.
         
-        This basically then a wrapper for numpy.cumsum.
+        This basically then a wrapper for numpy.cumsum. Multiplies by step in main_x_range.
         
         Returns
         -------
@@ -380,9 +381,9 @@ class granite_bank_measurement(measurement):
         return self.I1
         
     def calculate_I2(self):
-        """An instance method to calculate the first integral from B_array.
+        """An instance method to calculate the second integral from the first integral.
         
-        This basically then a wrapper for numpy.cumsum.
+        This basically then a wrapper for numpy.cumsum. Multiplies by step in main_x_range.
         
         Returns
         -------
@@ -393,6 +394,33 @@ class granite_bank_measurement(measurement):
         self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
         
         return self.I2
+    
+    def calculate_trajectory(self):
+        """An instance method to calculate the trajectory from the 2nd integral.
+        
+        The force on the electron due to the B field is F = q(v x B), 
+        which can relate to the second derivative of position through F = m.d2x/dt2.
+        The second integral has already been calculated.
+        Just multiplied through by q/(gamma.m.v)
+        
+        v = c.sqrt(1-(1/(1+e.V/(mc^2))^2))
+        
+        Returns
+        -------
+        self.i1 : np.ndarray
+            The first integral array. The same shape as B_array
+            
+        References
+        ----------
+        https://www.slac.stanford.edu/pubs/slactns/tn04/slac-tn-10-076.pdf
+        """
+        print('I am calculating trajectory')
+        Ebessy = 1.7e9 #TODO needs to be in Messbank
+        gamma = Ebessy/511000
+        v = cnst.c * np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
+        self.trajectory = self.I2*1e-6*cnst.e/(gamma * v * cnst.m_e)
+        
+        return self.trajectory
         
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):

@@ -77,8 +77,12 @@ if __name__ == '__main__':
     proc1222 = np.genfromtxt('HP-FIELD1222.DAT',skip_header = 1)
     proc1223 = np.genfromtxt('HP-FIELD1223.DAT',skip_header = 1)
     
-    plt.plot(b.main_x_range,b.I2[:,0,1,0])
-    plt.plot(proc1222[:,0],proc1222[:,5])
+#    plt.plot(b.main_x_range,b.I2[:,0,1,0])
+#    plt.plot(proc1222[:,0],proc1222[:,5])
+    plt.plot(b.main_x_range, b.trajectory[:,0,1,0])
+    plt.show(block = 1)
+ 
+ 
     
     a.save_campaign_file()
     a.save_measurement_system_to_file()
