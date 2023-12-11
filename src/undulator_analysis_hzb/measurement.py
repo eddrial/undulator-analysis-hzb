@@ -444,13 +444,18 @@ class granite_bank_measurement(measurement):
         
         beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
         
-        defl = self.I1*1e-3*cnst.e/(gamma * beta * cnst.m_e)
+        defl = self.I1*1e-3*beta
         
         tauz = (1/(2*gamma**2*cnst.c))*np.cumsum(1+(gamma*beta)*defl[:,0,1,0])
         
         om_0 = (4*np.pi*cnst.c*gamma**2)
         
+        phij = np.zeros(self.B_peaks_x[0].__len__())
         
+        for i in range(len(phij)):
+            phij[i] = (2*np.pi/360)*((2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*(np.sum((gamma**2*defl[:self.B_peaks_x[0][i],0,1,0]**2))-self.main_x_range[i]*self.K**2/2))
+        
+        print('wait here')
         
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):
