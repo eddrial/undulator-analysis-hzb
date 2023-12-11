@@ -9,6 +9,7 @@ import undulator_analysis_hzb.track as trk
 import datetime as dt
 from tarfile import grp
 import scipy.interpolate as interp
+import scipy.integrate as integ
 from scipy import signal
 from scipy import constants as cnst
 
@@ -270,23 +271,23 @@ class granite_bank_measurement(measurement):
         num_periods = dvm_x_peaks[0].__len__()/2
         
         #find undulator period length
-        period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
-        period_len_calc = small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[period_power]
+        self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
+        self.period_len_calc = small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power]
         #
         
         #create a nice regular grid to interpolate on
-        period_len_round = np.round(period_len_calc,1)
+        self.period_len_round = np.round(self.period_len_calc,1)
         #centre - period_length*((periods/2)+6)
-        grid_min = x_mid_round - period_len_round*((num_periods/2)+6)
-        grid_max = x_mid_round + period_len_round*((num_periods/2)+6)
+        grid_min = x_mid_round - self.period_len_round*((num_periods/2)+6)
+        grid_max = x_mid_round + self.period_len_round*((num_periods/2)+6)
         #check min is within all ranges
         #check max is within all ranges
         while grid_min < np.min(mins) and grid_max > np.max(maxs):
-            grid_min += period_len_round
-            grid_max -= period_len_round
+            grid_min += self.period_len_round
+            grid_max -= self.period_len_round
             
         #create B array
-        self.main_x_range = np.arange(grid_min, grid_max, period_len_calc/600)
+        self.main_x_range = np.arange(grid_min, grid_max, self.period_len_round/600)
         DVM_array = np.zeros([self.main_x_range.__len__(),1,3,2])
         self.B_array = np.zeros([self.main_x_range.__len__(),1,3,2]) #calculate 1 and 3
         #then do interpolations!
@@ -300,6 +301,17 @@ class granite_bank_measurement(measurement):
         #create B fields
         self.B_array[:,:,:,0] = interpy(DVM_array[:,:,:,0])
         self.B_array[:,:,:,1] = interpz(DVM_array[:,:,:,1])
+        
+        #average peak B
+        self.B0 = interpz(np.mean(dvm_x_peaks[1]['peak_heights']))
+        
+        #average K value
+        self.K = cnst.e*self.B0*self.period_len_round*10e-3/(2*np.pi*cnst.c *cnst.m_e)
+        
+        #locations of peaks of By in x (real undulator, do I need this?)
+        self.B_peaks_x = signal.find_peaks(np.abs(self.B_array[:,0,1,0]), height = 0.95*np.max(self.B_array))
+        
+        
         print('to here')
         
         
@@ -358,7 +370,7 @@ class granite_bank_measurement(measurement):
         
         if calc_Phi == True:
             #TODO self.calculate_phase_error()
-            pass
+            self.calculate_phase_error()
         
         if np.all([calc_F, calc_S, calc_T, calc_Phi] ) == True:
             self.analysed = True
@@ -378,6 +390,8 @@ class granite_bank_measurement(measurement):
         print('I am calculating I1')
         self.I1 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.B_array[:,:,:,:], axis = 0)
         
+        self.I1_trap = integ.cumulative_trapezoid(self.B_array[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        
         return self.I1
         
     def calculate_I2(self):
@@ -392,6 +406,7 @@ class granite_bank_measurement(measurement):
         """
         print('I am calculating I2')
         self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
+        self.I2_trap = integ.cumulative_trapezoid(self.I1_trap[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
         
         return self.I2
     
@@ -421,6 +436,21 @@ class granite_bank_measurement(measurement):
         self.trajectory = self.I2*1e-6*cnst.e/(gamma * v * cnst.m_e)
         
         return self.trajectory
+        
+    def calculate_phase_error(self):
+        print('I am calculating phase error')
+        Ebessy = 1.7e9
+        gamma = Ebessy/511000
+        
+        beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
+        
+        defl = self.I1*1e-3*cnst.e/(gamma * beta * cnst.m_e)
+        
+        tauz = (1/(2*gamma**2*cnst.c))*np.cumsum(1+(gamma*beta)*defl[:,0,1,0])
+        
+        om_0 = (4*np.pi*cnst.c*gamma**2)
+        
+        
         
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):
