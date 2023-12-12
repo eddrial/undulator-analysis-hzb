@@ -306,7 +306,7 @@ class granite_bank_measurement(measurement):
         self.B0 = interpz(np.mean(dvm_x_peaks[1]['peak_heights']))
         
         #average K value
-        self.K = cnst.e*self.B0*self.period_len_round*10e-3/(2*np.pi*cnst.c *cnst.m_e)
+        self.K = cnst.e*self.B0*self.period_len_round*1e-3/(2*np.pi*cnst.c *cnst.m_e)
         
         #locations of peaks of By in x (real undulator, do I need this?)
         self.B_peaks_x = signal.find_peaks(np.abs(self.B_array[:,0,1,0]), height = 0.95*np.max(self.B_array))
@@ -444,7 +444,7 @@ class granite_bank_measurement(measurement):
         
         beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
         
-        defl = self.I1*1e-3*beta
+        defl = self.I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
         
         tauz = (1/(2*gamma**2*cnst.c))*np.cumsum(1+(gamma*beta)*defl[:,0,1,0])
         
@@ -452,8 +452,21 @@ class granite_bank_measurement(measurement):
         
         phij = np.zeros(self.B_peaks_x[0].__len__())
         
+        phijalt = np.zeros(self.B_peaks_x[0].__len__())
+        
         for i in range(len(phij)):
-            phij[i] = (2*np.pi/360)*((2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*(np.sum((gamma**2*defl[:self.B_peaks_x[0][i],0,1,0]**2))-self.main_x_range[i]*self.K**2/2))
+            phij[i] = (2*np.pi/360)*\
+            ((2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*\
+             (self.main_x_range[4]-self.main_x_range[3])*1e-3*(np.sum((gamma**2*(beta*defl[:self.B_peaks_x[0][i],0,1,0])**2))\
+              -self.main_x_range[i]*1e-3*self.K**2/2))
+            
+        self.nom_peaks = np.arange(self.B_peaks_x[0][79]-300*79,self.B_peaks_x[0][79]+300*78, 300 )
+            
+        for i in range(len(phij)):
+            phijalt[i] = (2*np.pi/360)*\
+            ((2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*\
+             ((self.main_x_range[4]-self.main_x_range[3])*1e-3*np.sum((gamma**2*(beta*defl[:self.nom_peaks[i],0,1,0])**2))\
+              -self.main_x_range[i]*1e-3*self.K**2/2))
         
         print('wait here')
         
