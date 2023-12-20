@@ -444,6 +444,8 @@ class granite_bank_measurement(measurement):
         
         beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
         
+        #This is deflection in radians
+        #Int[0,L]Bydz = theta*(gamma*m*c^2)/e*c
         defl = self.I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
         
         tauz = (1/(2*gamma**2*cnst.c))*np.cumsum(1+(gamma*beta)*defl[:,0,1,0])
@@ -452,21 +454,26 @@ class granite_bank_measurement(measurement):
         
         phij = np.zeros(self.B_peaks_x[0].__len__())
         
-        phijalt = np.zeros(self.B_peaks_x[0].__len__())
+        
         
         for i in range(len(phij)):
             phij[i] = (2*np.pi/360)*\
-            ((2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*\
-             (self.main_x_range[4]-self.main_x_range[3])*1e-3*(np.sum((gamma**2*(beta*defl[:self.B_peaks_x[0][i],0,1,0])**2))\
-              -self.main_x_range[i]*1e-3*self.K**2/2))
+            (2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*\
+             (self.main_x_range[4]-self.main_x_range[3])*1e-3*(np.sum((gamma**2*(beta*defl[:self.B_peaks_x[0][i],0,1,0])**2)))\
+              -self.main_x_range[self.B_peaks_x[0][i]]*1e-3*self.K**2/2
             
         self.nom_peaks = np.arange(self.B_peaks_x[0][79]-300*79,self.B_peaks_x[0][79]+300*78, 300 )
             
-        for i in range(len(phij)):
-            phijalt[i] = (2*np.pi/360)*\
-            ((2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*\
-             ((self.main_x_range[4]-self.main_x_range[3])*1e-3*np.sum((gamma**2*(beta*defl[:self.nom_peaks[i],0,1,0])**2))\
-              -self.main_x_range[i]*1e-3*self.K**2/2))
+        phijintegrand = integ.cumulative_trapezoid((gamma*beta*defl[:,0,1,0])**2, self.main_x_range*1e-3, initial = 0)\
+                    -self.main_x_range*1e-3*self.K**2/2
+                    
+        phijconsts = (2*np.pi/self.period_len_calc)/(1 + self.K**2/2)
+        
+        phij_rad = phijconsts*phijintegrand
+        
+        phij_deg = phij_rad*360/(2*np.pi)
+        #I think I'm close with phij_deg. maybe a factor 10 out. But the maths is there? Is it?
+                    
         
         print('wait here')
         
