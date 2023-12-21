@@ -1,0 +1,29 @@
+ error report for the data set mult23bz.dvm        
+--------------------------------------------
+      
+         127   data points thrown away to get a
+         monotonically increasing data set
+ the truncated data set has only   1591 data points 
+        out of totally   2558 data points
+ the derivative at  0.45767E+03 and  0.51302E+03 is zero 
+ the derivative at  0.51302E+03 and  0.57007E+03 is zero 
+ the derivative at  0.60007E+03 and  0.65289E+03 is zero 
+ the derivative at  0.68289E+03 and  0.76655E+03 is zero 
+ the derivative at  0.93557E+03 and  0.98965E+03 is zero 
+ the derivative at  0.98965E+03 and  0.10213E+04 is zero 
+ the derivative at  0.10213E+04 and  0.10729E+04 is zero 
+ the derivative at  0.11021E+04 and  0.11570E+04 is zero 
+ the derivative at  0.12398E+04 and  0.13247E+04 is zero 
+ the derivative at  0.13247E+04 and  0.13560E+04 is zero 
+ the derivative at  0.14122E+04 and  0.14659E+04 is zero 
+ the derivative at  0.14946E+04 and  0.15487E+04 is zero 
+ the derivative at  0.15774E+04 and  0.16332E+04 is zero 
+ the derivative at  0.16332E+04 and  0.17202E+04 is zero 
+ the derivative at  0.17202E+04 and  0.17735E+04 is zero 
+ the derivative at  0.17735E+04 and  0.18555E+04 is zero 
+ the derivative at  0.18555E+04 and  0.19116E+04 is zero 
+ the derivative at  0.20257E+04 and  0.21060E+04 is zero 
+ the rms value of the residuals is  0.16894E-02
+ the maximum residual is  0.50497E-02
+ the rms value of the lambda/2-filtered data is  0.13528E-02
+ the maximum value of the lambda/2-filtered data is  0.97933E-02

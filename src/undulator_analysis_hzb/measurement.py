@@ -447,24 +447,11 @@ class granite_bank_measurement(measurement):
         #This is deflection in radians
         #Int[0,L]Bydz = theta*(gamma*m*c^2)/e*c
         defl = self.I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
-        
-        tauz = (1/(2*gamma**2*cnst.c))*np.cumsum(1+(gamma*beta)*defl[:,0,1,0])
-        
-        om_0 = (4*np.pi*cnst.c*gamma**2)
-        
-        phij = np.zeros(self.B_peaks_x[0].__len__())
-        
-        
-        
-        for i in range(len(phij)):
-            phij[i] = (2*np.pi/360)*\
-            (2*np.pi/self.period_len_calc)/(1 + self.K**2/2)*\
-             (self.main_x_range[4]-self.main_x_range[3])*1e-3*(np.sum((gamma**2*(beta*defl[:self.B_peaks_x[0][i],0,1,0])**2)))\
-              -self.main_x_range[self.B_peaks_x[0][i]]*1e-3*self.K**2/2
-            
+
         self.nom_peaks = np.arange(self.B_peaks_x[0][79]-300*79,self.B_peaks_x[0][79]+300*78, 300 )
             
-        phijintegrand = integ.cumulative_trapezoid((gamma*beta*defl[:,0,1,0])**2, self.main_x_range*1e-3, initial = 0)\
+        phijintegrand = integ.cumulative_trapezoid((gamma*beta*defl[:,0,1,0])**2\
+                                                   +(gamma*beta*defl[:,0,1,1])**2, self.main_x_range*1e-3, initial = 0)\
                     -self.main_x_range*1e-3*self.K**2/2
                     
         phijconsts = (2*np.pi/self.period_len_calc)/(1 + self.K**2/2)

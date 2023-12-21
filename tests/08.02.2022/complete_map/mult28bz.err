@@ -1,0 +1,15 @@
+ error report for the data set mult28bz.dvm        
+--------------------------------------------
+      
+         128   data points thrown away to get a
+         monotonically increasing data set
+ the truncated data set has only   1590 data points 
+        out of totally   2557 data points
+ the derivative at  0.43063E+03 and  0.10729E+04 is zero 
+ the derivative at  0.11016E+04 and  0.18542E+04 is zero 
+ the derivative at  0.18542E+04 and  0.21064E+04 is zero 
+ the rms value of the residuals is  0.20278E-02
+ the maximum residual is  0.85106E-02
+ the fitted period length is  0.55521E+02
+ the rms value of the lambda/2-filtered data is  0.14199E-02
+ the maximum value of the lambda/2-filtered data is  0.98994E-02

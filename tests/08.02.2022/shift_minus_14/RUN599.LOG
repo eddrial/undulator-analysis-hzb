@@ -1,0 +1,43 @@
+
+**********************   X  SCAN  **********************
+Date    08-Feb-22 10:24:59
+Operator:     C. R.
+UE56-SESAME    /   X-SCAN
+SHIFT = -14 mm 
+after Fe Shimming  
+
+
+*********************************************************
+
+X AXIS  Parameter
+Start Pos. (mm):         0.000
+End Pos. (mm):         2535.000
+Binning (mm):             1.000
+Array Size:            2685
+Scan Velocity (mm/s):    25.0
+Fast  Return  (mm/s):   100.0
+
+Y AXIS  Parameter
+Start Pos. (mm):         0.000
+End Pos. (mm):          0.000
+Binning (mm):             0.000
+Array Size:            0
+Scan Velocity (mm/s):    50.0
+Fast  Return  (mm/s):   100.0
+
+Z AXIS  Parameter
+Start Pos. (mm):        -0.000
+End Pos. (mm):          0.000
+Binning (mm):             2.500
+Array Size:            1
+Scan Velocity (mm/s):    50.0
+Fast  Return  (mm/s):   100.0
+
+Pitch  Parameter
+Start Pos. (deg):         0.000
+End Pos. (deg):          0.000
+Binning (deg):             0.000
+Array Size:            0
+Scan Velocity (deg/s):     0.0
+Fast  Return  (deg/s):     0.0
+
