@@ -306,6 +306,20 @@ class granite_bank_measurement(measurement):
         self.B_array[:,:,:,0] = interpy(DVM_array[:,:,:,0])
         self.B_array[:,:,:,1] = interpz(DVM_array[:,:,:,1])
         
+        #remove background
+        #TODO actually read in from some exyernal source
+        self.backgrBY = np.array([-2.5e-005, -2.9e-005])
+        self.backgrBZ = np.array([0.7e-6,  4.5e-6])
+        self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
+        self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        
+        a = np.vstack([self.backgrBY_ar,self.backgrBY_ar])
+        
+        self.B_array_bg_subtracted = self.B_array[:,:,:,:]-a[:,None, None, :].T
+        
+        #hacky hacky B_array
+        #self.B_array = self.B_array_bg_subtracted
+        
         #average peak B
         self.B0 = interpz(np.mean(dvm_x_peaks[1]['peak_heights']))
         
