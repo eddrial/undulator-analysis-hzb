@@ -18,9 +18,10 @@ if __name__ == '__main__':
     
     
     
-    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/test_campaign.h5')
+    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/UE56_sesa_campaign.h5')
     
-    a = cmp.Campaign(file_path, campaign_name = 'UEtest')
+#    a = cmp.Campaign(file_path, campaign_name = 'UEtest')
+    a = cmp.Campaign(file_path, campaign_name = 'UE56_SESA')
     
     a.create_campaign_file()
     
@@ -38,9 +39,9 @@ if __name__ == '__main__':
     print (a.campaign_name)
     
     #generating measurement
-    b = mes.measurement('RUN1221')
-    lfile_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/RUN1221.LOG')
-    
+    b = mes.measurement('RUN601')
+    #lfile_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/RUN1221.LOG')
+    lfile_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/08.02.2022/complete_map/RUN601.LOG')
     print(b.__class__)
     
     granite_bank_measurement.convert_to_granite_bank_measurement(b)

@@ -199,11 +199,13 @@ class granite_bank_measurement(measurement):
                 self.pitch_unit = 'deg'
         
         #TODO actually algorithmically derive Track Numbers
-        self.tracks = {1221:trk.track(), 1222: trk.track(), 1223: trk.track()}
+        self.tracks = {}
+        for i in range(int((self.z_end-self.z_start)/self.z_step)+1):
+            self.tracks[int(self.name[3:])+i] = trk.track()
         
         for trac in self.tracks:
             
-            file_path_dvm = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG{}.DVM'.format(trac))
+            file_path_dvm = self.logfile.parent.joinpath('./MAG{}.DVM'.format(trac))
             self.tracks[trac].load_dvm_data(file_path_dvm)
                 
     def read_tracks(self):
@@ -248,7 +250,7 @@ class granite_bank_measurement(measurement):
         
         #find central track (or nominate primary track)
         
-        trac = 1222
+        trac = min(self.tracks)+int((len(self.tracks)+1)/2)
         
         #interpolates the central DVM track. This should be a function in track.py
         u, c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
@@ -288,8 +290,10 @@ class granite_bank_measurement(measurement):
             
         #create B array
         self.main_x_range = np.arange(grid_min, grid_max, self.period_len_round/600)
-        DVM_array = np.zeros([self.main_x_range.__len__(),1,3,2])
-        self.B_array = np.zeros([self.main_x_range.__len__(),1,3,2]) #calculate 1 and 3
+        y_tracks = int(1+(self.y_end-self.y_start)/self.y_step)
+        z_tracks = int(1+(self.z_end-self.z_start)/self.z_step)
+        DVM_array = np.zeros([self.main_x_range.__len__(),y_tracks,z_tracks,2])
+        self.B_array = np.zeros([self.main_x_range.__len__(),y_tracks,z_tracks,2]) 
         #then do interpolations!
         i = 0
         #for track in tracks
@@ -309,7 +313,7 @@ class granite_bank_measurement(measurement):
         self.K = cnst.e*self.B0*self.period_len_round*1e-3/(2*np.pi*cnst.c *cnst.m_e)
         
         #locations of peaks of By in x (real undulator, do I need this?)
-        self.B_peaks_x = signal.find_peaks(np.abs(self.B_array[:,0,1,0]), height = 0.95*np.max(self.B_array))
+        self.B_peaks_x = signal.find_peaks(np.abs(self.B_array[:,int(y_tracks/2),int(z_tracks/2),0]), height = 0.95*np.max(self.B_array))
         
         
         print('to here')
@@ -448,10 +452,10 @@ class granite_bank_measurement(measurement):
         #Int[0,L]Bydz = theta*(gamma*m*c^2)/e*c
         defl = self.I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
 
-        self.nom_peaks = np.arange(self.B_peaks_x[0][79]-300*79,self.B_peaks_x[0][79]+300*78, 300 )
+#        self.nom_peaks = np.arange(self.B_peaks_x[0][79]-300*79,self.B_peaks_x[0][79]+300*78, 300 )
             
-        phijintegrand = integ.cumulative_trapezoid((gamma*beta*defl[:,0,1,0])**2\
-                                                   +(gamma*beta*defl[:,0,1,1])**2, self.main_x_range*1e-3, initial = 0)\
+        phijintegrand = integ.cumulative_trapezoid((gamma*beta*defl[:,int(defl.shape[1]/2),int(defl.shape[2]/2),0])**2\
+                                                   +(gamma*beta*defl[:,int(defl.shape[1]/2),int(defl.shape[2]/2),1])**2, self.main_x_range*1e-3, initial = 0)\
                     -self.main_x_range*1e-3*self.K**2/2
                     
         phijconsts = (2*np.pi/self.period_len_calc)/(1 + self.K**2/2)
