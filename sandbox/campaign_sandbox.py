@@ -42,6 +42,7 @@ if __name__ == '__main__':
     b = mes.measurement('RUN601')
     #lfile_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/RUN1221.LOG')
     lfile_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/08.02.2022/complete_map/RUN601.LOG')
+    #Run 601 equates to phase measurement...
     print(b.__class__)
     
     granite_bank_measurement.convert_to_granite_bank_measurement(b)

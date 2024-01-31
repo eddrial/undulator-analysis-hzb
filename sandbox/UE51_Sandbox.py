@@ -18,8 +18,9 @@ if __name__ == '__main__':
     
     
     
-# Place to store and work with the hdf5 file
-    file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
+# Place to store and work with the hdf5 file D:\UE51\UE51 Measurements
+    #file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
+    file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/UE51.h5')
 
 #name the campaign
     a = cmp.Campaign(file_path, campaign_name = 'UE51')
@@ -36,7 +37,8 @@ if __name__ == '__main__':
     b = mes.measurement('RUN1277')
 
     #file path to the Log file
-    lfile_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/Measurement 8/RUN1277.LOG')
+    #lfile_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/Measurement 8/RUN1277.LOG')
+    lfile_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/Measurement 8/RUN1277.LOG')
     #debug statement
     print(b.__class__)
     
@@ -77,7 +79,27 @@ if __name__ == '__main__':
     
     
 #    a.add_measurement_system(granite_messbank)
-
+    
+    #central axis finding loop
+    central_axis=np.zeros(len(b.B_peaks_x[0]))
+    for i in range (len(b.B_peaks_x[0])):
+        fine_z_array = np.linspace(-36,-26,1001)
+        z_axis = np.linspace(b.z_start, b.z_end, 11)
+        absoulute_array=abs(b.B_array_bg_subtracted[b.B_peaks_x[0][i],0,:,0])
+        my_polyfit = np.polyfit(z_axis, absoulute_array,3)
+        poly = np.poly1d(my_polyfit)
+    #    poly(fine_z_array)
+        central_value = fine_z_array[np.where(poly(fine_z_array)==np.min(poly(fine_z_array)))]
+        
+        
+        plt.plot(z_axis,absoulute_array )
+        plt.plot(fine_z_array, poly(fine_z_array))
+        plt.plot(central_value,poly(central_value), 'ro')
+        print(i)
+        central_axis[i]=central_value
+        plt.clf()
+    
+    print('The central value here is {}'.format(central_value))
 
     a.save_campaign_file()
     a.save_measurement_system_to_file()
