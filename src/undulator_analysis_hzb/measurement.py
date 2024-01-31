@@ -307,9 +307,9 @@ class granite_bank_measurement(measurement):
         self.B_array[:,:,:,1] = interpz(DVM_array[:,:,:,1])
         
         #remove background
-        #TODO actually read in from some exyernal source
-        self.backgrBY = np.array([-2.5e-005, -2.9e-005])
-        self.backgrBZ = np.array([0.7e-6,  4.5e-6])
+        #TODO actually read in from some external source
+        self.backgrBY = np.array([-2.5e-005, -2.9e-005])  #UE56 SESAME Testing
+        self.backgrBZ = np.array([0.7e-6,  4.5e-6])   #UE56 SESAME testing
         self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
         self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
         
@@ -493,6 +493,47 @@ class granite_bank_measurement(measurement):
                 pass
             elif item == 'measurement_timestamp':
                 pass
+            elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
+                pass
+            
+            elif item == 'I1' or item == 'I1_trap':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'Tmm'
+                
+            elif item == 'I2' or item == 'I2_trap':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'Tmm^2'
+            
+            elif item == 'trajectory':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'mm'
+            
+            elif item == 'B_array_bg_subtracted':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'T'
+            elif item == 'main_x_range':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'mm'
             #save the B_array data
             elif item == 'B_array':
                 #requires dataset
