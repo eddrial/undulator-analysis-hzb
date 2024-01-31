@@ -308,8 +308,11 @@ class granite_bank_measurement(measurement):
         
         #remove background
         #TODO actually read in from some external source
-        self.backgrBY = np.array([-2.5e-005, -2.9e-005])  #UE56 SESAME Testing
-        self.backgrBZ = np.array([0.7e-6,  4.5e-6])   #UE56 SESAME testing
+#        self.backgrBY = np.array([-2.5e-005, -2.9e-005])  #UE56 SESAME Testing
+#        self.backgrBZ = np.array([0.7e-6,  4.5e-6])   #UE56 SESAME testing
+        self.backgrBY = np.array([-1.7e-005, -2.9e-005])  #UE51 SESAME Testing
+        self.backgrBZ = np.array([1.0e-6,  12e-6])   #UE51 testing
+        
         self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
         self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
         
