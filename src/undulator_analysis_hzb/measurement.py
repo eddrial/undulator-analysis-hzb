@@ -609,7 +609,25 @@ class granite_bank_measurement(measurement):
             # grp['B_array'].dims[3].attach_scale(grp['B_orientation'])
             #
 
-            
+    def find_central_axis(self):
+        central_axis=np.zeros(len(self.B_peaks_x[0]))
+        for i in range (len(self.B_peaks_x[0])):
+            fine_z_array = np.linspace(-36,-26,1001)
+            z_axis = np.linspace(self.z_start, self.z_end, 11)
+            absoulute_array=abs(self.B_array_bg_subtracted[self.B_peaks_x[0][i],0,:,0])
+            my_polyfit = np.polyfit(z_axis, absoulute_array,3)
+            poly = np.poly1d(my_polyfit)
+        #    poly(fine_z_array)
+            central_value = fine_z_array[np.where(poly(fine_z_array)==np.min(poly(fine_z_array)))]
+ 
+        central_axis_linefit = my_polyfit = np.polyfit(np.arange(len(central_axis)), central_axis,1)
+        line_fit_fn = np.poly1d(central_axis_linefit)
+        
+        print('Pole 0 = {}'.format(line_fit_fn(0)))
+        print('Pole 149 = {}'.format(line_fit_fn(149)))
+        
+        print('The central value here is {}'.format(central_value))
+        return line_fit_fn
             
 ##area for custom exception
 class IncompleteMetadataError(Exception):

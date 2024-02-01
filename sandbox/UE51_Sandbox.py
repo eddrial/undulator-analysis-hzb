@@ -16,11 +16,12 @@ import pathlib
 
 if __name__ == '__main__':
     
-    
+    meas_number = 13
+    run_number = 1336
     
 # Place to store and work with the hdf5 file D:\UE51\UE51 Measurements
-    #file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
-    file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/UE51.h5')
+    file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
+    #file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/UE51.h5')
 
 #name the campaign
     a = cmp.Campaign(file_path, campaign_name = 'UE51')
@@ -34,11 +35,11 @@ if __name__ == '__main__':
     print (a.campaign_name)
     
     #generating measurement
-    b = mes.measurement('RUN1277')
+    b = mes.measurement('RUN{}'.format(run_number))
 
     #file path to the Log file
-    #lfile_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/Measurement 8/RUN1277.LOG')
-    lfile_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/Measurement 8/RUN1277.LOG')
+    lfile_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/Measurement {}/RUN{}.LOG'.format(meas_number, run_number))
+    #lfile_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/Measurement 9/RUN1310.LOG')
     #debug statement
     print(b.__class__)
     
@@ -64,10 +65,10 @@ if __name__ == '__main__':
     b.read_logfile_metadata()
     
     #define the component identity tree
-    b.add_component('Whole_Undulator')
-    b.add_ident('1')
-    b.add_state('G20S0')
-    b.add_step('Step_8')
+    b.add_component('Single_Girder')
+    b.add_ident('Upper')
+    b.add_state('G100S0O-40')
+    b.add_step('Step_{}'.format(meas_number))
     b.add_measurement_system(granite_messbank)
     
     #process the measurement
@@ -79,6 +80,10 @@ if __name__ == '__main__':
     
     
 #    a.add_measurement_system(granite_messbank)
+    
+    a.save_campaign_file()
+    a.save_measurement_system_to_file()
+    print(b.logfile)
     
     #central axis finding loop
     central_axis=np.zeros(len(b.B_peaks_x[0]))
@@ -99,8 +104,12 @@ if __name__ == '__main__':
         central_axis[i]=central_value
         plt.clf()
     
+    central_axis_linefit = my_polyfit = np.polyfit(np.arange(len(central_axis)), central_axis,1)
+    line_fit_fn = np.poly1d(central_axis_linefit)
+    
+    print('Pole 0 = {}'.format(line_fit_fn(0)))
+    print('Pole 149 = {}'.format(line_fit_fn(149)))
+    
     print('The central value here is {}'.format(central_value))
 
-    a.save_campaign_file()
-    a.save_measurement_system_to_file()
-    print(b.logfile)
+   
