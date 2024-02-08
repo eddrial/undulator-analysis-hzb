@@ -18,7 +18,7 @@ if __name__ == '__main__':
     
     
     
-    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/UE56_sesa_campaign.h5')
+    file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/UE56_sesa_campaign_bspl.h5')
     
 #    a = cmp.Campaign(file_path, campaign_name = 'UEtest')
     a = cmp.Campaign(file_path, campaign_name = 'UE56_SESA')
@@ -81,10 +81,72 @@ if __name__ == '__main__':
     
 #    plt.plot(b.main_x_range,b.I2[:,0,1,0])
 #    plt.plot(proc1222[:,0],proc1222[:,5])
-    plt.plot(b.main_x_range, b.trajectory[:,0,1,0])
-    plt.show(block = 1)
- 
- 
+    # plt.plot(b.main_x_range, b.trajectory[:,0,1,0])
+    # plt.show(block = 1)
+    
+    #a lot of this should move into testing somehow
+    #comparisons against Analyze produced data
+    
+    main_path = 'C:/Users/oqb/dawn-workspace/undulator_analysis_hzb/tests/resources/08.02.2022/complete_map/mult10b'
+    #DVM
+    mult10bydvm = np.genfromtxt('{}y.dvm'.format(main_path))
+    mult10bzdvm = np.genfromtxt('{}z.dvm'.format(main_path))
+    
+    # dvm_diff_plot = plt.plot((b.tracks[610].dvm_data[:,0:3:2]-mult10bzdvm)[:,0])
+    # dvm_diff_plot.title('Difference in X position in X range between .dvm and .hdf5')
+    # dvm_diff_plot.xlabel('Position n')
+    # dvm_diff_plot.ylabel('Variation (mm)')
+    
+    #CAL
+    mult10bycal = np.genfromtxt('{}y.cal'.format(main_path))
+    mult10bzcal = np.genfromtxt('{}z.cal'.format(main_path))
+    
+    plt.plot(mult10bycal[:,0],mult10bycal[:,1], label = '.cal data')
+    plt.plot(b.main_x_range,b.B_array[:,0,9,0], label = '.hdf5 interpolated data')
+    # cal_diff_plot.legend()
+    # cal_diff_plot.title('Difference between .cal and .hdf5 files')
+    # cal_diff_plot.xlabel('X (mm)')
+    # cal_diff_plot.ylabel('Field (T)')
+    
+    #SPL
+    mult10byspl = np.genfromtxt('{}y.spl'.format(main_path))
+    mult10bzspl = np.genfromtxt('{}z.spl'.format(main_path))
+    
+    plt.plot(mult10byspl[:,0], mult10byspl[:,1])
+    plt.plot(mult10bycal[:,0], mult10bycal[:,1])
+    plt.plot(b.main_x_range,b.B_array[:,0,9,0])
+    plt.plot(b.main_x_range,b.B_array_bg_subtracted[:,0,9,0])
+    
+    #SPI
+    mult10byspi = np.genfromtxt('{}y.spi'.format(main_path))
+    mult10bzspi = np.genfromtxt('{}z.spi'.format(main_path))
+    
+    plt.plot(mult10byspi[:,0], mult10byspi[:,1])
+    plt.plot(mult10bzspi[:,0], mult10bzspi[:,1])
+#    plt.plot(b.main_x_range,b.I1[:,0,9,0])
+    plt.plot(b.main_x_range,b.I1_trap[:,0,9,0])
+#    plt.plot(b.main_x_range,b.I1[:,0,9,1])
+    plt.plot(b.main_x_range,b.I1_trap[:,0,9,1])
+    
+    #SII
+    mult10bysii = np.genfromtxt('{}y.sii'.format(main_path))
+    mult10bzsii = np.genfromtxt('{}z.sii'.format(main_path))
+    
+    plt.plot(mult10bysii[:,0], mult10bysii[:,1])
+    plt.plot(mult10bzsii[:,0], mult10bzsii[:,1])
+#    plt.plot(b.main_x_range,b.I2[:,0,9,0])
+    plt.plot(b.main_x_range,b.I2_trap[:,0,9,0])
+    plt.plot(b.main_x_range,b.I2_trap_bg[:,0,9,0])
+#    plt.plot(b.main_x_range,b.I2[:,0,9,1])
+    plt.plot(b.main_x_range,b.I2_trap[:,0,9,1])
+    plt.plot(b.main_x_range,b.I2_trap_bg[:,0,9,1])
+    
+    #PHA
+    mult10bypha = np.genfromtxt('{}y.pha'.format(main_path))
+    mult10bzpha = np.genfromtxt('{}z.pha'.format(main_path))
+    
+    plt.plot(mult10bypha[:,0], mult10bypha[:,1])
+    plt.plot(mult10bzpha[:,0], mult10bzpha[:,1])
     
     a.save_campaign_file()
     a.save_measurement_system_to_file()

@@ -12,6 +12,7 @@ import scipy.interpolate as interp
 import scipy.integrate as integ
 from scipy import signal
 from scipy import constants as cnst
+import matplotlib.pyplot as plt
 
 class measurement(object):
     '''
@@ -308,17 +309,28 @@ class granite_bank_measurement(measurement):
         
         #remove background
         #TODO actually read in from some external source
-#        self.backgrBY = np.array([-2.5e-005, -2.9e-005])  #UE56 SESAME Testing
-#        self.backgrBZ = np.array([0.7e-6,  4.5e-6])   #UE56 SESAME testing
-        self.backgrBY = np.array([-1.7e-005, -2.9e-005])  #UE51 SESAME Testing
-        self.backgrBZ = np.array([1.0e-6,  12e-6])   #UE51 testing
+        self.backgrBY = np.array([-2.5e-005, -2.9e-005])  #UE56 SESAME Testing
+        self.backgrBZ = np.array([0.7e-6,  4.5e-6])   #UE56 SESAME testing
+#        self.backgrBY = np.array([-1.7e-005, -2.9e-005])  #UE51 SESAME Testing
+#        self.backgrBZ = np.array([1.0e-6,  12e-6])   #UE51 testing
         
-        self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
-        self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        self.B_array_bg_subtracted = np.zeros(self.B_array.shape)
         
-        a = np.vstack([self.backgrBY_ar,self.backgrBY_ar])
+        #for each track in B Array
+        #    first element = is - soll
+        #    last element  - ist - soll
         
-        self.B_array_bg_subtracted = self.B_array[:,:,:,:]-a[:,None, None, :].T
+        for trak in range(self.B_array.shape[2]):
+            sub_to_background_BY_ar =  np.linspace(self.B_array[0,0,trak,0]-self.backgrBY[0],self.B_array[-1,0,trak,0]-self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
+            sub_to_background_BZ_ar =  np.linspace(self.B_array[0,0,trak,1]-self.backgrBZ[0],self.B_array[-1,0,trak,1]-self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        
+        #self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
+        #self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        
+            a = np.vstack([sub_to_background_BY_ar,sub_to_background_BZ_ar])
+        
+            self.B_array_bg_subtracted[:,:,trak,:] = self.B_array[:,:,trak,:]-a[:, None, :].T
+        
         
         #hacky hacky B_array
         #self.B_array = self.B_array_bg_subtracted
@@ -409,11 +421,12 @@ class granite_bank_measurement(measurement):
             The second integral array. The same shape as B_array
         """
         print('I am calculating I1')
-        self.I1 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.B_array[:,:,:,:], axis = 0)
+        #self.I1 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.B_array[:,:,:,:], axis = 0)
         
         self.I1_trap = integ.cumulative_trapezoid(self.B_array[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
         
-        return self.I1
+        self.I1_trap_bg = integ.cumulative_trapezoid(self.B_array_bg_subtracted[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        return self.I1_trap
         
     def calculate_I2(self):
         """An instance method to calculate the second integral from the first integral.
@@ -426,10 +439,11 @@ class granite_bank_measurement(measurement):
             The first integral array. The same shape as B_array
         """
         print('I am calculating I2')
-        self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
+#        self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
         self.I2_trap = integ.cumulative_trapezoid(self.I1_trap[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I2_trap_bg = integ.cumulative_trapezoid(self.I1_trap_bg[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
         
-        return self.I2
+        return self.I2_trap
     
     def calculate_trajectory(self):
         """An instance method to calculate the trajectory from the 2nd integral.
@@ -454,7 +468,7 @@ class granite_bank_measurement(measurement):
         Ebessy = 1.7e9 #TODO needs to be in Messbank
         gamma = Ebessy/511000
         v = cnst.c * np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
-        self.trajectory = self.I2*1e-6*cnst.e/(gamma * v * cnst.m_e)
+        self.trajectory = self.I2_trap*1e-6*cnst.e/(gamma * v * cnst.m_e)
         
         return self.trajectory
         
@@ -465,15 +479,44 @@ class granite_bank_measurement(measurement):
         
         beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
         
+        
         #This is deflection in radians
         #Int[0,L]Bydz = theta*(gamma*m*c^2)/e*c
-        defl = self.I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
-
+        defl = self.I1_trap*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
+        #transverse velocity beta_t
+        beta_t = beta * np.sqrt(defl[:,:,:,0]**2 + defl[:,:,:,1]**2) 
+        plt.plot(self.main_x_range,gamma**2*beta_t[:,:,15]**2-self.K**2/2)
+        
+        plt.plot(self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]],integ.cumulative_trapezoid((gamma**2*beta_t[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1],0,15]**2-self.K**2/2),self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]], initial = 0))
+        
+        plt.plot(self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]],integ.cumulative_trapezoid(gamma**2*beta_t[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1],0,15]**2,self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]],initial = 0))
+        
+        X = self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]+1]
+        Y = integ.cumulative_trapezoid(gamma**2*beta_t[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]+1,0,15]**2,self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]+1],initial = 0)
+        
+        fit = np.polyfit(X, Y, 1)
+        linear_baseline = np.poly1d(fit) # create the linear baseline function
+        
+        new_Y = Y-linear_baseline(X)
+        plt.plot(X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]],new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]])
+        
+        #this is close. Just need to double check that the points are actually at the peaks of the field, and multiply through by the constants
+        j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+        phase_j = new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+        self.phase = new_Y
 #        self.nom_peaks = np.arange(self.B_peaks_x[0][79]-300*79,self.B_peaks_x[0][79]+300*78, 300 )
-            
+        #determine local K from slope
+        loc_K = np.sqrt(2*linear_baseline)
+        
+        phijconsts = (2*np.pi/self.period_len_calc)/(1 + loc_K**2/2)
+        
+        local_phase_error = np.mean(phijconsts*np.abs(phase_j)*180/np.pi)
+        
         phijintegrand = integ.cumulative_trapezoid((gamma*beta*defl[:,int(defl.shape[1]/2),int(defl.shape[2]/2),0])**2\
                                                    +(gamma*beta*defl[:,int(defl.shape[1]/2),int(defl.shape[2]/2),1])**2, self.main_x_range*1e-3, initial = 0)\
                     -self.main_x_range*1e-3*self.K**2/2
+        
+
                     
         phijconsts = (2*np.pi/self.period_len_calc)/(1 + self.K**2/2)
         
@@ -499,7 +542,7 @@ class granite_bank_measurement(measurement):
             elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
                 pass
             
-            elif item == 'I1' or item == 'I1_trap':
+            elif item == 'I1' or item == 'I1_trap' or item == 'I1_trap_bg':
                 print('{} is special and saved'.format(item))
                 grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
                 #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
@@ -507,7 +550,7 @@ class granite_bank_measurement(measurement):
                 grp[item][...] = self.__getattribute__(item)
                 grp[item].attrs['unit'] = 'Tmm'
                 
-            elif item == 'I2' or item == 'I2_trap':
+            elif item == 'I2' or item == 'I2_trap'or item == 'I2_trap_bg':
                 print('{} is special and saved'.format(item))
                 grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
                 #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
