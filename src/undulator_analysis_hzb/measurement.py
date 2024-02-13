@@ -458,7 +458,11 @@ class granite_bank_measurement(measurement):
         
         if calc_Phi == True:
             #TODO self.calculate_phase_error()
+<<<<<<< Upstream, based on originlab/f_06
             #self.calculate_phase_error()
+=======
+            self.calculate_phase_error()
+>>>>>>> d1275bb merged measurement.py
             self.calculate_phase_error_array()
             print('pause here end of phase calculation')
         
