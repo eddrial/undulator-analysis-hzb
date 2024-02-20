@@ -10,6 +10,7 @@ import datetime as dt
 from tarfile import grp
 import scipy.interpolate as interp
 import scipy.integrate as integ
+import scipy.ndimage as nd
 from scipy import signal
 from scipy import constants as cnst
 import matplotlib.pyplot as plt
@@ -453,12 +454,11 @@ class granite_bank_measurement(measurement):
             
         if calc_T == True:
             self.calculate_trajectory()
-            #TODO self.calculate_trajectory()
-            pass
+            self.calculate_smoothed_trajectory()
         
         if calc_Phi == True:
             #TODO self.calculate_phase_error()
-            self.calculate_phase_error()
+            #self.calculate_phase_error()
             self.calculate_phase_error_array()
             print('pause here end of phase calculation')
         
@@ -528,6 +528,30 @@ class granite_bank_measurement(measurement):
         self.trajectory = self.I2_trap*1e-6*cnst.e/(gamma * v * cnst.m_e)
         
         return self.trajectory
+    
+    def calculate_smoothed_trajectory(self):
+        """An instance method to calculate the smoothed trajectory from the actual trajectory.
+        
+        Basically this is just a window that smooths over the period length
+        Returns
+        -------
+        self.i1 : np.ndarray
+            The first integral array. The same shape as B_array
+            
+        References
+        ----------
+        https://www.slac.stanford.edu/pubs/slactns/tn04/slac-tn-10-076.pdf
+        """
+        print('I am calculating averaged trajectory')
+        self.smoothed_trajectory = np.zeros(self.trajectory.shape)
+        for i in range (self.trajectory.shape[1]):
+            for j in range (self.trajectory.shape[2]):
+                self.smoothed_trajectory[:,i,j,:] = nd.uniform_filter1d(self.trajectory[:,i,j,:], size = int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
+                
+        
+        #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
+        
+        return self.smoothed_trajectory
         
     def calculate_phase_error(self):
         print('I am calculating phase error')
@@ -697,6 +721,14 @@ class granite_bank_measurement(measurement):
                 grp[item][...] = self.__getattribute__(item)
                 grp[item].attrs['unit'] = 'mm'
             
+            elif item == 'smoothed_trajectory':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'mm'
+            
             elif item == 'B_array_bg_subtracted':
                 print('{} is special and saved'.format(item))
                 grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
@@ -720,6 +752,38 @@ class granite_bank_measurement(measurement):
                 grp[item][...] = self.__getattribute__(item)
                 grp[item].attrs['unit'] = 'T'
                 
+            elif item == 'B_array_bg_subtracted_peaks':
+                print ('{} not saved'.format(item))
+                
+            elif item == 'phase':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+                
+                print ('{} saved'.format(item))
+                
+            elif item == 'phase_error_array':
+                for key in self.__getattribute__(item).keys(): 
+                    grp.require_dataset('{}/{}'.format(item,key), shape = self.__getattribute__(item)[key].shape, dtype = self.__getattribute__(item)[key].dtype)
+                    
+                    grp[item][str(key)][...] = self.__getattribute__(item)[key]
+                    grp[item][str(key)].attrs['unit'] = 'deg'
+                                      
+                    
+                print ('{} saved'.format(item))
+            elif item == 'phase_error_array_j':
+                 
+                grp.require_dataset('{}'.format(item), shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                                      
+                    
+                print ('{} saved'.format(item))
             else:
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)

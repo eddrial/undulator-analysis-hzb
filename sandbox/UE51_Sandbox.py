@@ -16,8 +16,8 @@ import pathlib
 
 if __name__ == '__main__':
     
-    meas_number = 15
-    run_number = 1340
+    meas_number = 25
+    run_number = 1395
     
 # Place to store and work with the hdf5 file D:\UE51\UE51 Measurements
     file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
@@ -65,9 +65,9 @@ if __name__ == '__main__':
     b.read_logfile_metadata()
     
     #define the component identity tree
-    b.add_component('Single_Girder')
-    b.add_ident('Upper')
-    b.add_state('G100S0O-40')
+    b.add_component('Full_Undulator')
+    b.add_ident('UE51')
+    b.add_state('G15')
     b.add_step('Step_{}'.format(meas_number))
     b.add_measurement_system(granite_messbank)
     
@@ -89,9 +89,9 @@ if __name__ == '__main__':
     central_axis=np.zeros(len(b.B_peaks_x[0]))
     for i in range (len(b.B_peaks_x[0])):
         fine_z_array = np.linspace(-36,-26,1001)
-        z_axis = np.linspace(b.z_start, b.z_end, 11)
+        z_axis = np.linspace(b.z_start, b.z_end, 31)
         absoulute_array=abs(b.B_array_bg_subtracted[b.B_peaks_x[0][i],0,:,0])
-        my_polyfit = np.polyfit(z_axis, absoulute_array,3)
+        my_polyfit = np.polyfit(z_axis[11:19], absoulute_array[11:19],3)
         poly = np.poly1d(my_polyfit)
     #    poly(fine_z_array)
         central_value = fine_z_array[np.where(poly(fine_z_array)==np.min(poly(fine_z_array)))]
@@ -100,6 +100,7 @@ if __name__ == '__main__':
         plt.plot(z_axis,absoulute_array )
         plt.plot(fine_z_array, poly(fine_z_array))
         plt.plot(central_value,poly(central_value), 'ro')
+        #plt.show()
         print(i)
         central_axis[i]=central_value
         plt.clf()
@@ -110,6 +111,6 @@ if __name__ == '__main__':
     print('Pole 0 = {}'.format(line_fit_fn(0)))
     print('Pole 149 = {}'.format(line_fit_fn(149)))
     
-    print('The central value here is {}'.format(central_value))
+    print('The central value here is {}'.format(line_fit_fn(75)))
 
    
