@@ -278,7 +278,7 @@ class granite_bank_measurement(measurement):
         
         #find undulator period length
         self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
-        self.period_len_calc = small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power]
+        self.period_len_calc = np.abs(small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power])
         #
         ####UNTIL HERE
         #from here each track needs its own information, for phase error calculation etc

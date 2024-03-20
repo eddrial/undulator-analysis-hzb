@@ -16,13 +16,13 @@ import pathlib
 
 if __name__ == '__main__':
     
-    meas_number = 25
-    run_number = 1395
+    meas_number = 49
+    run_number = 1561
     
 # Place to store and work with the hdf5 file D:\UE51\UE51 Measurements
     file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
     #file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/UE51.h5')
-
+    
 #name the campaign
     a = cmp.Campaign(file_path, campaign_name = 'UE51')
     
