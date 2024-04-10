@@ -278,7 +278,7 @@ class granite_bank_measurement(measurement):
         
         #find undulator period length
         self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
-        self.period_len_calc = small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power]
+        self.period_len_calc = np.abs(small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power])
         #
         ####UNTIL HERE
         #from here each track needs its own information, for phase error calculation etc
@@ -448,6 +448,7 @@ class granite_bank_measurement(measurement):
         #switch to calculate first integral
         if calc_F == True:
             self.calculate_I1()
+            self.calculate_smoothed_I1()
             
         if calc_S == True:
             self.calculate_I2()
@@ -461,9 +462,9 @@ class granite_bank_measurement(measurement):
 
             #self.calculate_phase_error()
 
-            self.calculate_phase_error()
+            #self.calculate_phase_error()
 
-            self.calculate_phase_error_array()
+            #self.calculate_phase_error_array()
             print('pause here end of phase calculation')
         
         if np.all([calc_F, calc_S, calc_T, calc_Phi] ) == True:
@@ -488,6 +489,32 @@ class granite_bank_measurement(measurement):
         
         self.I1_trap_bg = integ.cumulative_trapezoid(self.B_array_bg_subtracted[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
         return self.I1_trap
+    
+    def calculate_smoothed_I1(self):
+        """An instance method to calculate the smoothed first integral from the actual actual.
+        
+        Basically this is just a window that smoothes over the period length
+        Returns
+        -------
+        self.smooth_i1 : np.ndarray
+            The smoothed first integral array. The same shape as B_array
+            
+        References
+        ----------
+        https://www.slac.stanford.edu/pubs/slactns/tn04/slac-tn-10-076.pdf
+        """
+        print('I am calculating averaged first integral')
+        self.I1_smooth = np.zeros(self.I1_trap.shape)
+        for i in range (self.I1_trap.shape[1]):
+            for j in range (self.I1_trap.shape[2]):
+                #print('i: {}, j: {}'.format(i,j))
+                self.I1_smooth[:,i,j,:] = nd.uniform_filter1d(self.I1_trap[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
+                
+        
+        #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
+        
+        return self.I1_smooth
+        
         
     def calculate_I2(self):
         """An instance method to calculate the second integral from the first integral.
@@ -550,7 +577,8 @@ class granite_bank_measurement(measurement):
         self.smoothed_trajectory = np.zeros(self.trajectory.shape)
         for i in range (self.trajectory.shape[1]):
             for j in range (self.trajectory.shape[2]):
-                self.smoothed_trajectory[:,i,j,:] = nd.uniform_filter1d(self.trajectory[:,i,j,:], size = int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
+                #print('i: {}, j: {}'.format(i,j))
+                self.smoothed_trajectory[:,i,j,:] = nd.uniform_filter1d(self.trajectory[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
                 
         
         #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
@@ -701,7 +729,7 @@ class granite_bank_measurement(measurement):
             elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
                 pass
             
-            elif item == 'I1' or item == 'I1_trap' or item == 'I1_trap_bg':
+            elif item == 'I1' or item == 'I1_trap' or item == 'I1_trap_bg' or item == 'I1_smooth':
                 print('{} is special and saved'.format(item))
                 grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
                 #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
