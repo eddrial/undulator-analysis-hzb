@@ -8,6 +8,7 @@
 
    .. autosummary::
       :toctree:
+      :toctree:
    {% for item in attributes %}
       {{ item }}
    {%- endfor %}
