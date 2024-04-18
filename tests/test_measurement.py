@@ -15,7 +15,7 @@ import numpy as np
 file_path = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/test_campaign.h5')
 data_comparison_folder = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/08.02.2022')
 
-x_file = importlib.resources.files('undulator_analysis_hzb').joinpath('../resources/x_calib_senis112_17.spl')
+x_file = importlib.resources.files('undulator_analysis_hzb').joinpath('resources/x_calib_senis112_17.spl')
 y_file = importlib.resources.files('undulator_analysis_hzb').joinpath('../../resources/y_calib_senis112_17.spl')
 z_file = importlib.resources.files('undulator_analysis_hzb').joinpath('../../resources/z_calib_senis112_17.spl')
 
