@@ -16,12 +16,12 @@ import pathlib
 
 if __name__ == '__main__':
     
-    meas_number = 49
-    run_number = 1561
+    meas_number = 57
+    run_number = 1761
     
 # Place to store and work with the hdf5 file D:\UE51\UE51 Measurements
-    file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
-    #file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/UE51.h5')
+    #file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
+    file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/campaign_UE51.h5')
     
 #name the campaign
     a = cmp.Campaign(file_path, campaign_name = 'UE51')
@@ -38,8 +38,9 @@ if __name__ == '__main__':
     b = mes.measurement('RUN{}'.format(run_number))
 
     #file path to the Log file
-    lfile_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/Measurement {}/RUN{}.LOG'.format(meas_number, run_number))
-    #lfile_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/Measurement 9/RUN1310.LOG')
+    #lfile_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/Measurement {}/RUN{}.LOG'.format(meas_number, run_number))
+    lfile_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/Measurement {}/RUN{}.LOG'.format(meas_number, run_number))
+    
     #debug statement
     print(b.__class__)
     
@@ -65,9 +66,9 @@ if __name__ == '__main__':
     b.read_logfile_metadata()
     
     #define the component identity tree
-    b.add_component('Full_Undulator')
+    b.add_component('Upper Girder')
     b.add_ident('UE51')
-    b.add_state('G15')
+    b.add_state('G72, half G 8mm, Ax1 -2.05, Ax3 -1.95')
     b.add_step('Step_{}'.format(meas_number))
     b.add_measurement_system(granite_messbank)
     
@@ -81,8 +82,8 @@ if __name__ == '__main__':
     
 #    a.add_measurement_system(granite_messbank)
     
-    a.save_campaign_file()
-    a.save_measurement_system_to_file()
+    #a.save_campaign_file()
+    #a.save_measurement_system_to_file()
     print(b.logfile)
     
     #central axis finding loop
@@ -91,9 +92,9 @@ if __name__ == '__main__':
         fine_z_array = np.linspace(-36,-26,1001)
         z_axis = np.linspace(b.z_start, b.z_end, 31)
         absoulute_array=abs(b.B_array_bg_subtracted[b.B_peaks_x[0][i],0,:,0])
-        my_polyfit = np.polyfit(z_axis[11:19], absoulute_array[11:19],3)
+        my_polyfit = np.polyfit(z_axis[11:19], absoulute_array[11:19],5)
         poly = np.poly1d(my_polyfit)
-    #    poly(fine_z_array)
+        poly(fine_z_array)
         central_value = fine_z_array[np.where(poly(fine_z_array)==np.min(poly(fine_z_array)))]
         
         
@@ -103,7 +104,7 @@ if __name__ == '__main__':
         #plt.show()
         print(i)
         central_axis[i]=central_value
-        plt.clf()
+        #plt.clf()
     
     central_axis_linefit = my_polyfit = np.polyfit(np.arange(len(central_axis)), central_axis,1)
     line_fit_fn = np.poly1d(central_axis_linefit)
