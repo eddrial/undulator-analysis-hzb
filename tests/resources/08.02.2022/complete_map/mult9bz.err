@@ -1,0 +1,13 @@
+ error report for the data set mult9bz.dvm         
+--------------------------------------------
+      
+         127   data points thrown away to get a
+         monotonically increasing data set
+ the truncated data set has only   1590 data points 
+        out of totally   2558 data points
+ the derivative at  0.43020E+03 and  0.18905E+04 is zero 
+ the derivative at  0.18905E+04 and  0.21064E+04 is zero 
+ the rms value of the residuals is  0.15172E-02
+ the maximum residual is  0.61536E-02
+ the rms value of the lambda/2-filtered data is  0.17364E-02
+ the maximum value of the lambda/2-filtered data is  0.14760E-01

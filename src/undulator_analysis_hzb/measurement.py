@@ -9,7 +9,11 @@ import undulator_analysis_hzb.track as trk
 import datetime as dt
 from tarfile import grp
 import scipy.interpolate as interp
+import scipy.integrate as integ
+import scipy.ndimage as nd
 from scipy import signal
+from scipy import constants as cnst
+import matplotlib.pyplot as plt
 
 class measurement(object):
     '''
@@ -197,11 +201,13 @@ class granite_bank_measurement(measurement):
                 self.pitch_unit = 'deg'
         
         #TODO actually algorithmically derive Track Numbers
-        self.tracks = {1221:trk.track(), 1222: trk.track(), 1223: trk.track()}
+        self.tracks = {}
+        for i in range(int((self.z_end-self.z_start)/self.z_step)+1):
+            self.tracks[int(self.name[3:])+i] = trk.track()
         
         for trac in self.tracks:
             
-            file_path_dvm = importlib.resources.files('undulator_analysis_hzb').joinpath('../../tests/resources/MAG{}.DVM'.format(trac))
+            file_path_dvm = self.logfile.parent.joinpath('./MAG{}.DVM'.format(trac))
             self.tracks[trac].load_dvm_data(file_path_dvm)
                 
     def read_tracks(self):
@@ -244,10 +250,12 @@ class granite_bank_measurement(measurement):
         print ('mins: {} \n maxs: {}'.format(mins,maxs))
         #and the minimum 'max' of our x range
         
-        #find central track (or nominate primary track)
+        #find central track (or nominate primary track) - what is actually going on here?
+        #does not nee to be done on trac... can be  done from interpolated B0....no?
+        #finding #periods, period length and B0 and K
         
-        trac = 1222
-        
+        trac = min(self.tracks)+int((len(self.tracks)+1)/2)
+        #from here each track needs its own information, for phase error calculation etc
         #interpolates the central DVM track. This should be a function in track.py
         u, c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
         interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[c,0],
@@ -269,25 +277,60 @@ class granite_bank_measurement(measurement):
         num_periods = dvm_x_peaks[0].__len__()/2
         
         #find undulator period length
-        period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
-        period_len_calc = small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[period_power]
+        self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
+        self.period_len_calc = np.abs(small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power])
         #
+        ####UNTIL HERE
+        #from here each track needs its own information, for phase error calculation etc
+        #interpolates the central DVM track. This should be a function in track.py
+        #sorts out the array into unique elements
+        for trac in self.tracks:
+            self.tracks[trac].u, self.tracks[trac].c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
+            self.tracks[trac].interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[self.tracks[trac].c,0],
+                                            self.tracks[trac].dvm_data[self.tracks[trac].c,1])
+            #where can this be parameterised?
+            small_step = 0.05
+            x_scale = np.arange(np.min(self.tracks[trac].dvm_data[:,0]),
+                                np.max(self.tracks[trac].dvm_data[:,0]),
+                                small_step)
+            self.tracks[trac].dvm_x = self.tracks[trac].interpdvmy(x_scale)
+            
+            #find peaks
+            self.tracks[trac].dvm_x_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.95*np.max(self.tracks[trac].dvm_x))
+            #find central peak
+            self.tracks[trac].dvm_x_peaks_centre_ind = int(np.floor((self.tracks[trac].dvm_x_peaks[0].__len__()+1)/2))
+            #location of central peak
+            self.tracks[trac].x_mid = x_scale[dvm_x_peaks[0][dvm_x_peaks_centre_ind]]
+            self.tracks[trac].x_mid_round = np.round(x_mid,2)
+            #find number of periods
+            self.tracks[trac].num_periods = self.tracks[trac].dvm_x_peaks[0].__len__()/2
+            
+            #find undulator period length
+            self.tracks[trac].period_power = np.argmax(np.abs(np.fft.fft(self.tracks[trac].dvm_x[self.tracks[trac].dvm_x_peaks[0][0]:self.tracks[trac].dvm_x_peaks[0][-1]])))
+            self.tracks[trac].period_len_calc = np.abs(small_step*1/np.fft.fftfreq(self.tracks[trac].dvm_x[self.tracks[trac].dvm_x_peaks[0][0]:self.tracks[trac].dvm_x_peaks[0][-1]].__len__())[self.tracks[trac].period_power])
+            #
+        ####UNTIL HERE
         
+        period_len_calc_tmp = np.zeros(len(self.tracks))
+        for i in range(len(self.tracks)): 
+            period_len_calc_tmp[i] = self.tracks[trac].period_len_calc
         #create a nice regular grid to interpolate on
-        period_len_round = np.round(period_len_calc,1)
+        self.period_len_round = np.round(self.period_len_calc,1)
         #centre - period_length*((periods/2)+6)
-        grid_min = x_mid_round - period_len_round*((num_periods/2)+6)
-        grid_max = x_mid_round + period_len_round*((num_periods/2)+6)
+        grid_min = x_mid_round - self.period_len_round*((num_periods/2)+6)
+        grid_max = x_mid_round + self.period_len_round*((num_periods/2)+6)
         #check min is within all ranges
         #check max is within all ranges
         while grid_min < np.min(mins) and grid_max > np.max(maxs):
-            grid_min += period_len_round
-            grid_max -= period_len_round
+            grid_min += self.period_len_round
+            grid_max -= self.period_len_round
             
         #create B array
-        self.main_x_range = np.arange(grid_min, grid_max, period_len_calc/20)
-        DVM_array = np.zeros([self.main_x_range.__len__(),1,3,2])
-        self.B_array = np.zeros([self.main_x_range.__len__(),1,3,2]) #calculate 1 and 3
+        self.main_x_range = np.arange(grid_min, grid_max, self.period_len_round/600)
+        y_tracks = int(1+(self.y_end-self.y_start)/self.y_step)
+        z_tracks = int(1+(self.z_end-self.z_start)/self.z_step)
+        DVM_array = np.zeros([self.main_x_range.__len__(),y_tracks,z_tracks,2])
+        self.B_array = np.zeros([self.main_x_range.__len__(),y_tracks,z_tracks,2]) 
         #then do interpolations!
         i = 0
         #for track in tracks
@@ -299,6 +342,65 @@ class granite_bank_measurement(measurement):
         #create B fields
         self.B_array[:,:,:,0] = interpy(DVM_array[:,:,:,0])
         self.B_array[:,:,:,1] = interpz(DVM_array[:,:,:,1])
+        
+        
+        #remove background
+        #TODO actually read in from some external source
+        self.backgrBY = np.array([-2.5e-005, -2.9e-005])  #UE56 SESAME Testing
+        self.backgrBZ = np.array([0.7e-6,  4.5e-6])   #UE56 SESAME testing
+#        self.backgrBY = np.array([-1.7e-005, -2.9e-005])  #UE51 SESAME Testing
+#        self.backgrBZ = np.array([1.0e-6,  12e-6])   #UE51 testing
+        
+        self.B_array_bg_subtracted = np.zeros(self.B_array.shape)
+        
+        #for each track in B Array
+        #    first element = is - soll
+        #    last element  - ist - soll
+        
+        for trak in range(self.B_array.shape[2]):
+            sub_to_background_BY_ar =  np.linspace(self.B_array[0,0,trak,0]-self.backgrBY[0],self.B_array[-1,0,trak,0]-self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
+            sub_to_background_BZ_ar =  np.linspace(self.B_array[0,0,trak,1]-self.backgrBZ[0],self.B_array[-1,0,trak,1]-self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        
+        #self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
+        #self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        
+            a = np.vstack([sub_to_background_BY_ar,sub_to_background_BZ_ar])
+        
+            self.B_array_bg_subtracted[:,:,trak,:] = self.B_array[:,:,trak,:]-a[:, None, :].T
+        
+        self.B_array_bg_subtracted_peaks = {}
+        self.num_periods_array = np.zeros(self.B_array.shape[2])
+        self.period_len_round_array = np.zeros(self.B_array.shape[2])
+        self.period_len_calc_array = np.zeros(self.B_array.shape[2])
+        self.period_len_round_array = np.zeros(self.B_array.shape[2])
+        self.B0_array = np.zeros(self.B_array.shape[2])
+        self.K_calc_array = np.zeros(self.B_array.shape[2])
+        #calculate period lengths
+        for i in range(self.B_array.shape[2]):
+            
+            self.B_array_bg_subtracted_peaks[i] = signal.find_peaks(np.abs(self.B_array_bg_subtracted[:,0,i,0]), height = 0.95*np.max(self.B_array_bg_subtracted[:,0,i,0]))
+        #calculate period #
+            self.num_periods_array[i] = self.B_array_bg_subtracted_peaks[i][0].__len__()/2
+        #average peak B for each row row
+            period_power = np.argmax(np.abs(np.fft.fft(self.B_array_bg_subtracted[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1],0,i,0])))
+            period_len_calc = np.abs((self.main_x_range[1]-self.main_x_range[0])*1/np.fft.fftfreq(self.B_array_bg_subtracted[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1],0,i,0].__len__())[period_power])
+            
+            self.period_len_calc_array[i] = period_len_calc
+            self.period_len_round_array[i] = np.round(period_len_calc,1)
+            
+            self.B0_array[i] = interpy(np.mean(self.B_array_bg_subtracted_peaks[i][1]['peak_heights']))
+            self.K_calc_array[i] = cnst.e*self.B0_array[i]*self.period_len_round_array[i]*1e-3/(2*np.pi*cnst.c *cnst.m_e)
+        self.B0 = interpy(np.mean(dvm_x_peaks[1]['peak_heights']))
+        
+        
+        
+        #average K value
+        self.K = cnst.e*self.B0*self.period_len_round*1e-3/(2*np.pi*cnst.c *cnst.m_e)
+        
+        #locations of peaks of By in x (real undulator, do I need this?)
+        self.B_peaks_x = signal.find_peaks(np.abs(self.B_array[:,int(y_tracks/2),int(z_tracks/2),0]), height = 0.95*np.max(self.B_array))
+        
+        
         print('to here')
         
         
@@ -311,7 +413,304 @@ class granite_bank_measurement(measurement):
         
         return self.B_array, self.main_x_range, self.processed
         
+    def analyse_measurement(self, 
+                            calc_F = True, 
+                            calc_S = True,
+                            calc_T = True,
+                            calc_Phi = True):
+        """An instance method to analyse processed B Fields.
         
+        This method is a collection of other methods to analyse the 
+        measured B field and produce:
+        
+        First Field Integrals
+        Second Field Integrals
+        Trajectory
+        Phase Error  
+        
+        Parameters
+        ----------
+        calc_F : bool
+            A boolean switch to call the first field integral calculation
+        calc_F : bool
+            A boolean switch to call the second field integral calculation
+        calc_F : bool
+            A boolean switch to call the trajectory calculation
+        calc_Phi : bool
+            A boolean switch to call the phase error calculation   
+            
+        Returns
+        -------
+        self.analysed : bool
+            A boolean to identify if the measurement has been 'fully' analysed
+        """
+        
+        #switch to calculate first integral
+        if calc_F == True:
+            self.calculate_I1()
+            self.calculate_smoothed_I1()
+            
+        if calc_S == True:
+            self.calculate_I2()
+            
+        if calc_T == True:
+            self.calculate_trajectory()
+            self.calculate_smoothed_trajectory()
+        
+        if calc_Phi == True:
+            #TODO self.calculate_phase_error()
+            #self.calculate_phase_error()
+#            self.calculate_phase_error_array()
+            print('pause here end of phase calculation')
+        
+        if np.all([calc_F, calc_S, calc_T, calc_Phi] ) == True:
+            self.analysed = True
+        
+        return self.analysed
+    
+    def calculate_I1(self):
+        """An instance method to calculate the first integral from I1 array.
+        
+        This basically then a wrapper for numpy.cumsum. Multiplies by step in main_x_range.
+        
+        Returns
+        -------
+        self.i2 : np.ndarray
+            The second integral array. The same shape as B_array
+        """
+        print('I am calculating I1')
+        #self.I1 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.B_array[:,:,:,:], axis = 0)
+        
+        self.I1_trap = integ.cumulative_trapezoid(self.B_array[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        
+        self.I1_trap_bg = integ.cumulative_trapezoid(self.B_array_bg_subtracted[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        return self.I1_trap
+    
+    def calculate_smoothed_I1(self):
+        """An instance method to calculate the smoothed first integral from the actual actual.
+        
+        Basically this is just a window that smoothes over the period length
+        Returns
+        -------
+        self.smooth_i1 : np.ndarray
+            The smoothed first integral array. The same shape as B_array
+            
+        References
+        ----------
+        https://www.slac.stanford.edu/pubs/slactns/tn04/slac-tn-10-076.pdf
+        """
+        print('I am calculating averaged first integral')
+        self.I1_smooth = np.zeros(self.I1_trap.shape)
+        for i in range (self.I1_trap.shape[1]):
+            for j in range (self.I1_trap.shape[2]):
+                #print('i: {}, j: {}'.format(i,j))
+                self.I1_smooth[:,i,j,:] = nd.uniform_filter1d(self.I1_trap[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
+                
+        
+        #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
+        
+        return self.I1_smooth
+        
+        
+    def calculate_I2(self):
+        """An instance method to calculate the second integral from the first integral.
+        
+        This basically then a wrapper for numpy.cumsum. Multiplies by step in main_x_range.
+        
+        Returns
+        -------
+        self.i1 : np.ndarray
+            The first integral array. The same shape as B_array
+        """
+        print('I am calculating I2')
+#        self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
+        self.I2_trap = integ.cumulative_trapezoid(self.I1_trap[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I2_trap_bg = integ.cumulative_trapezoid(self.I1_trap_bg[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        
+        return self.I2_trap
+    
+    def calculate_trajectory(self):
+        """An instance method to calculate the trajectory from the 2nd integral.
+        
+        The force on the electron due to the B field is F = q(v x B), 
+        which can relate to the second derivative of position through F = m.d2x/dt2.
+        The second integral has already been calculated.
+        Just multiplied through by q/(gamma.m.v)
+        
+        v = c.sqrt(1-(1/(1+e.V/(mc^2))^2))
+        
+        Returns
+        -------
+        self.i1 : np.ndarray
+            The first integral array. The same shape as B_array
+            
+        References
+        ----------
+        https://www.slac.stanford.edu/pubs/slactns/tn04/slac-tn-10-076.pdf
+        """
+        print('I am calculating trajectory')
+        Ebessy = 1.7e9 #TODO needs to be in Messbank
+        gamma = Ebessy/511000
+        v = cnst.c * np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
+        self.trajectory = self.I2_trap*1e-6*cnst.e/(gamma * v * cnst.m_e)
+        
+        return self.trajectory
+    
+    def calculate_smoothed_trajectory(self):
+        """An instance method to calculate the smoothed trajectory from the actual trajectory.
+        
+        Basically this is just a window that smooths over the period length
+        Returns
+        -------
+        self.i1 : np.ndarray
+            The first integral array. The same shape as B_array
+            
+        References
+        ----------
+        https://www.slac.stanford.edu/pubs/slactns/tn04/slac-tn-10-076.pdf
+        """
+        print('I am calculating averaged trajectory')
+        self.smoothed_trajectory = np.zeros(self.trajectory.shape)
+        for i in range (self.trajectory.shape[1]):
+            for j in range (self.trajectory.shape[2]):
+                #print('i: {}, j: {}'.format(i,j))
+                self.smoothed_trajectory[:,i,j,:] = nd.uniform_filter1d(self.trajectory[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
+                
+        
+        #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
+        
+        return self.smoothed_trajectory
+        
+    def calculate_phase_error(self):
+        print('I am calculating phase error')
+        #phi_j = ((2pi/lambda_u)/(1+K^2/2))int[0,z_j](gamma^2*beta_T^2(z)-K^2/2)dz
+        #this clearly needs improving, because must be independent of machine!
+        #energy of BESSY - probably doesn't want to be in this part
+        Ebessy = 1.7e9
+        #the gamma of BESSY
+        gamma = Ebessy/511000
+        
+        #Average velocity of electron
+        beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
+        
+        #This is deflection in radians in our given machine, BESSY
+        defl = self.I1_trap*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
+        #transverse velocity beta_t
+        beta_t = beta * np.sqrt(defl[:,:,:,0]**2 + defl[:,:,:,1]**2) 
+        #reduce X range from first to last pole and integrate the path.
+        X = self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]+1]
+        #integrate the integrand gamma^2*beta_T^2 over reduced range
+        Y = integ.cumulative_trapezoid(gamma**2*beta_t[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]+1,0,15]**2,self.main_x_range[self.B_peaks_x[0][0]:self.B_peaks_x[0][-1]+1],initial = 0)
+        
+        #fit the resulting integrand
+        fit = np.polyfit(X, Y, 1)
+        #create the fit function
+        linear_baseline = np.poly1d(fit) # create the linear baseline function
+        
+        #this subtracts the integrated K^2/2
+        new_Y = Y-linear_baseline(X)
+        #plt.plot(X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]],new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]])
+        
+        #this again gives the positions of the poles. perhaps unnecessary
+        j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+        
+        #phase error all the way through the device
+        self.phase = new_Y
+        
+        #phase error at each pole. plots what I would normally expect
+        self.phase_j = new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+        
+        #determine local K from slope
+        loc_K = np.sqrt(2*linear_baseline[1])
+        
+        #these are the constants from the front of the equation
+        phijconsts = (2*np.pi/self.period_len_calc)/(1 + loc_K**2/2)
+        
+        #take the mean of the collection
+        local_phase_error_rad = np.mean(phijconsts*np.abs(self.phase_j))
+        
+        #multiply up to degrees
+        self.local_phase_error_deg = local_phase_error_rad*180/np.pi
+        
+        print('local phase error is {}'.format(self.local_phase_error_deg))
+        
+        print('wait here')
+        
+        return self.local_phase_error_deg
+
+    def calculate_phase_error_array(self):
+        print('I am calculating phase error')
+        #phi_j = ((2pi/lambda_u)/(1+K^2/2))int[0,z_j](gamma^2*beta_T^2(z)-K^2/2)dz
+        #this clearly needs improving, because must be independent of machine!
+        #energy of BESSY - probably doesn't want to be in this part
+        Ebessy = 1.7e9
+        #the gamma of BESSY
+        gamma = Ebessy/511000
+        
+        #Average velocity of electron
+        beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
+        
+        #This is deflection in radians in our given machine, BESSY. All trajecotries OK
+        defl = self.I1_trap*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
+        #transverse velocity beta_t. All trajectories OK.
+        beta_t = beta * np.sqrt(defl[:,:,:,0]**2 + defl[:,:,:,1]**2)
+        
+        self.phase_error_array_rms = np.zeros(beta_t.shape[1:])
+        self.loc_K = np.zeros(beta_t.shape[1:])
+        phijconsts = np.zeros(beta_t.shape[1:])
+        local_phase_error_rad_array = np.zeros(beta_t.shape[1:])
+        self.local_phase_error_deg_array = np.zeros(beta_t.shape[1:])
+        self.phase_error_array = {}
+        self.phase_error_array_j = np.zeros(((self.B_array_bg_subtracted_peaks[0][0]-self.B_array_bg_subtracted_peaks[0][0][0])[0:-1].__len__(),
+                                            beta_t.shape[1],
+                                            beta_t.shape[2]))
+        
+        
+        #reduce X range from first to last pole and integrate the path.
+        for i in range(self.phase_error_array_j.shape[2]):
+            X = self.main_x_range[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1]
+        #integrate the integrand gamma^2*beta_T^2 over reduced range
+            Y = integ.cumulative_trapezoid(gamma**2*beta_t[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1,0,i]**2,
+                                           self.main_x_range[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1],
+                                           initial = 0)
+        
+        #fit the resulting integrand
+            fit = np.polyfit(X, Y, 1)
+        #create the fit function
+            linear_baseline = np.poly1d(fit) # create the linear baseline function
+        
+        #this subtracts the integrated K^2/2
+            new_Y = Y-linear_baseline(X)
+        #plt.plot(X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]],new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]])
+        
+        #this again gives the positions of the poles. perhaps unnecessary
+        #j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+        
+        #phase error all the way through the device
+            self.phase_error_array[i] = new_Y
+        
+        #phase error at each pole. plots what I would normally expect
+            self.phase_error_array_j[:,0,i] = new_Y[(self.B_array_bg_subtracted_peaks[i][0]-self.B_array_bg_subtracted_peaks[i][0][0])[0:-1]]
+        
+        #determine local K from slope
+            self.loc_K[0,i] = np.sqrt(2*linear_baseline[1])
+        
+        #these are the constants from the front of the equation
+            phijconsts[0,i] = (2*np.pi/self.period_len_calc_array[i])/(1 + self.loc_K[0,i]**2/2)
+        
+        #take the mean of the collection
+            local_phase_error_rad_array[0,i] = np.mean(phijconsts[0,i]*np.abs(self.phase_error_array_j[:,0,i]))
+        
+        #multiply up to degrees
+            self.local_phase_error_deg_array[0,i] = local_phase_error_rad_array[0,i]*180/np.pi
+        
+        print('local phase error is {}'.format(self.local_phase_error_deg_array[0,i]))
+        
+        print('wait here')
+        
+        return self.local_phase_error_deg_array
+
+    
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):
         for item in self.__dict__:
@@ -323,6 +722,55 @@ class granite_bank_measurement(measurement):
                 pass
             elif item == 'measurement_timestamp':
                 pass
+            elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
+                pass
+            
+            elif item == 'I1' or item == 'I1_trap' or item == 'I1_trap_bg' or item == 'I1_smooth':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'Tmm'
+                
+            elif item == 'I2' or item == 'I2_trap'or item == 'I2_trap_bg':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'Tmm^2'
+            
+            elif item == 'trajectory':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'mm'
+            
+            elif item == 'smoothed_trajectory':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'mm'
+            
+            elif item == 'B_array_bg_subtracted':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'T'
+            elif item == 'main_x_range':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'mm'
             #save the B_array data
             elif item == 'B_array':
                 #requires dataset
@@ -332,6 +780,38 @@ class granite_bank_measurement(measurement):
                 grp[item][...] = self.__getattribute__(item)
                 grp[item].attrs['unit'] = 'T'
                 
+            elif item == 'B_array_bg_subtracted_peaks':
+                print ('{} not saved'.format(item))
+                
+            elif item == 'phase':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+                
+                print ('{} saved'.format(item))
+                
+            elif item == 'phase_error_array':
+                for key in self.__getattribute__(item).keys(): 
+                    grp.require_dataset('{}/{}'.format(item,key), shape = self.__getattribute__(item)[key].shape, dtype = self.__getattribute__(item)[key].dtype)
+                    
+                    grp[item][str(key)][...] = self.__getattribute__(item)[key]
+                    grp[item][str(key)].attrs['unit'] = 'deg'
+                                      
+                    
+                print ('{} saved'.format(item))
+            elif item == 'phase_error_array_j':
+                 
+                grp.require_dataset('{}'.format(item), shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                                      
+                    
+                print ('{} saved'.format(item))
             else:
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)
@@ -395,7 +875,25 @@ class granite_bank_measurement(measurement):
             # grp['B_array'].dims[3].attach_scale(grp['B_orientation'])
             #
 
-            
+    def find_central_axis(self):
+        central_axis=np.zeros(len(self.B_peaks_x[0]))
+        for i in range (len(self.B_peaks_x[0])):
+            fine_z_array = np.linspace(-36,-26,1001)
+            z_axis = np.linspace(self.z_start, self.z_end, 11)
+            absoulute_array=abs(self.B_array_bg_subtracted[self.B_peaks_x[0][i],0,:,0])
+            my_polyfit = np.polyfit(z_axis, absoulute_array,3)
+            poly = np.poly1d(my_polyfit)
+        #    poly(fine_z_array)
+            central_value = fine_z_array[np.where(poly(fine_z_array)==np.min(poly(fine_z_array)))]
+ 
+        central_axis_linefit = my_polyfit = np.polyfit(np.arange(len(central_axis)), central_axis,1)
+        line_fit_fn = np.poly1d(central_axis_linefit)
+        
+        print('Pole 0 = {}'.format(line_fit_fn(0)))
+        print('Pole 149 = {}'.format(line_fit_fn(149)))
+        
+        print('The central value here is {}'.format(central_value))
+        return line_fit_fn
             
 ##area for custom exception
 class IncompleteMetadataError(Exception):

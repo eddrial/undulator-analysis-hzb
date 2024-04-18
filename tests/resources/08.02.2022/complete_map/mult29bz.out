@@ -1,0 +1,90 @@
+mult29bz.dvm
+            
+
+ names of parameters as follows : 
+b(1) == amplitude, 1st harm.
+b(2) == amplitude, 3rd harm.
+b(3) == amplitude, 5rd harm.
+....                        
+b(n) == amplitude, n^th harm.
+b(n+1) == lambda, mm.
+b(n+2) == x0, 1st harm, mm.
+b(n+3) == x0, 3rd harm, mm.
+b(n+4) == x0, 5th harm, mm.
+....
+b(nparm) == x0, n^th harm, mm.
+
+ parameters:
+   1  3.5877973E-03
+   2 -4.0548221E-05
+   3 -7.5170363E-05
+   4  2.8166521E-06
+   5  7.1888148E-06
+   6  5.5736580E+01
+   7  1.0513240E+03
+   8  1.0416537E+03
+   9  1.0477238E+03
+  10  2.0947853E+01
+  11  6.3752980E+00
+ number of iterations:   13
+     sumsq:  8.80090E-03
+       rms:  2.35195E-03  dimension of magnetic field
+       rms:  6.55532E+01  percent of b_eff
+   rms_ext:  2.09019E+01  percent of b_eff
+ B_eff =   3.5879E-03
+ B_max =   3.6581E-03
+ K_eff =    0.019
+ lamda_1 (nm) =      2.54073
+
+        eigenvectors in parameter space
+
+ error                         direction
+    37.66,  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  1.00  0.00
+    11.49,  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  1.00
+     6.10,  0.00  0.00  0.00  0.00  0.00  0.00  0.00  1.00  0.00  0.00  0.00
+     1.98,  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  1.00  0.00  0.00
+     0.23,  0.00  0.00  0.00  0.00  0.00 -0.05  1.00  0.00  0.00  0.00  0.00
+     0.02,  0.00  0.00  0.00  0.00  0.00  1.00  0.05  0.00  0.00  0.00  0.00
+     0.00,  0.70 -0.41 -0.36 -0.45  0.00  0.00  0.00  0.00  0.00  0.00  0.00
+     0.00,  0.28 -0.55  0.60  0.46  0.22  0.00  0.00  0.00  0.00  0.00  0.00
+     0.00,  0.30  0.39 -0.32  0.35  0.73  0.00  0.00  0.00  0.00  0.00  0.00
+     0.00,  0.57  0.50  0.19  0.28 -0.56  0.00  0.00  0.00  0.00  0.00  0.00
+     0.00, -0.12 -0.35 -0.61  0.62 -0.33  0.00  0.00  0.00  0.00  0.00  0.00
+   
+  calculated kicks for trajectory compensation: 
+ kick_1:  -0.12799 Tmm
+ kick_2:   0.12799 Tmm
+      
+ the rms value of the second derivative is  0.00000E+00
+ the maximum value of the second derivative is  0.00000E+00
+      
+ the maximum transverse movement of the electron in mu_meter
+                  (peak to peak) is  0.66294E+01
+      
+ the truncated data set has only   1591 data points 
+      
+ the rms value of the residuals is  0.23520E-02
+ the maximum residual is  0.93622E-02
+      
+ the rms value of the lambda/2-filtered data is  0.13872E-02
+ the maximum value of the lambda/2-filtered data is  0.68257E-02
+      
+ the rms phase error (all data) is    2.056 deg.
+ the maximum phase error (all data) is    4.217 deg.
+      
+ the rms phase error (extrema) is    6.656 deg.
+ the maximum phase error (extrema) is   13.490 deg.
+      
+ the Walker-rms phase error (all data) is    2.053 deg.
+ the Walker-maximum phase error (all data) is    4.207 deg.
+      
+ the Walker-rms phase error (extrema) is    2.237 deg.
+ the Walker-maximum phase error (extrema) is    3.890 deg.
+  
+  phase: straight line subtracted
+ -----------------------------------------
+ total phase error             2.055577    
+ local phase error            0.7570387    
+ slowly varying phase error  NaN           
+ oscillatory phase error     NaN           
+ -----------------------------------------

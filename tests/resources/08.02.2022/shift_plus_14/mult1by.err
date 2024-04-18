@@ -1,0 +1,11 @@
+ error report for the data set mult1by.dvm         
+--------------------------------------------
+      
+         128   data points thrown away to get a
+         monotonically increasing data set
+ the truncated data set has only   1590 data points 
+        out of totally   2557 data points
+ the rms value of the residuals is  0.36786E-02
+ the maximum residual is  0.11917E-01
+ the rms value of the lambda/2-filtered data is  0.26270E-01
+ the maximum value of the lambda/2-filtered data is  0.20470E+00
