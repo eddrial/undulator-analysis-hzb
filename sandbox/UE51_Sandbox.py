@@ -14,7 +14,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pathlib
 
-if __name__ == '__main__':
+
+def UE51_Sandbox():
     
     meas_number = 57
     run_number = 1761
@@ -115,3 +116,5 @@ if __name__ == '__main__':
     print('The central value here is {}'.format(line_fit_fn(75)))
 
    
+if __name__ == '__main__':
+    UE51_Sandbox()
