@@ -136,7 +136,7 @@ class granite_bank_measurement(measurement):
     #TODO Technical Details in init
     
     def __repr__(self):
-        return 'GraniteBankMasurement()'
+        return 'GraniteBankMeasurement()'
     
     @classmethod
     def convert_to_granite_bank_measurement(cls,obj):
@@ -895,6 +895,116 @@ class granite_bank_measurement(measurement):
         print('The central value here is {}'.format(central_value))
         return line_fit_fn
             
+class moved_wire_measurement(measurement):
+    """
+    A class to describe measurements from the HZB Moved Wire System.
+    Actually also loading actual data.... 
+    Functionality should be isolated
+    """
+    
+    def __init__(self, measurement_name, **kwargs):
+        """Constructor for moved_wire_measurement.
+        
+        Date 25.04.24:
+        
+        The Moved Wire System in the Schwerlasthalle is the primary measurement system
+        for first field integral measurment of large magnet systems at Helmholtz-Zentrum
+        Berlin. It takes an integrated measurement of the X axis along a Z axis path. 
+        The measurement plane can be positioned int he vertical (Y) direction.
+        All positions relative.
+        
+        The Granite Messbank in the Schwerlasthalle is the primary measurement
+        system for 3D field mapping at Helmholtz-Zentrum Berlin. It takes a measurement
+        along the longitudinal axis X, and that axis can be positioned in the 
+        vertical (Y) and transverse (Z) directions. These are relative positions.
+        
+        Parameters
+        ----------
+        measurement : `measurement`
+            This class is subclassed from `measurement`
+            
+        Attributes
+        ----------
+        measurement_name : str
+            The name of the measurement. Often a number as a string.
+            
+        Other Parameters
+        ----------------
+        measurement_timestamp : datetime object
+            The timestamp of the measurement.
+        """
+        super(moved_wire_measurement,self).__init__(measurement_name)
+        #self.name = measurement_name
+        
+        for key, value in kwargs.items():
+            self.__setattr__(key, value)
+    
+    def __repr__(self):
+        return 'MovedWireMeasurement()'
+    
+    @classmethod
+    def convert_to_moved_wire_measurement(cls,obj):
+        obj.__class__ = moved_wire_measurement
+        
+    def read_logfile_metadata(self):
+        f = open(self.logfile, 'r')
+        loglines = f.readlines()
+        print ('log data read into loglines')
+        
+        for line in range(len(loglines)):
+            if loglines[line][0:4] == 'Date':
+                self.measurement_timestamp = dt.datetime.strptime(loglines[line].split()[1] +
+                                                                  ' ' +
+                                                                  loglines[line].split()[2],'%d-%b-%y %H:%M:%S')
+            
+#            if loglines[line].split()[0] == 'Operator:':
+#                self.operator = loglines[line].split()[1]
+            if loglines[line][0:10] == 'First-Run:':
+                self.mw_track_name = int(loglines[line].split()[1])
+
+            
+            if loglines[line][0:15] == 'DAQ   Parameter':
+                self.daq_scale_factor = float(loglines[line+1].split()[-1])
+                self.daq_agilent_range = float(loglines[line+3].split()[-1])
+                self.daq_agilent_aperture = float(loglines[line+4].split()[-1])
+                self.daq_amplifier_scale_factor = float(loglines[line+5].split()[-1])
+                self.daq_trigger_delay = float(loglines[line+6].split()[-1])
+                self.daq_wait_digitax_pos = float(loglines[line+7].split()[-1])
+                self.daq_proc_time = float(loglines[line+8].split()[-1])
+                
+            
+            if loglines[line][0:18] == 'applied stepsize :':
+                self.z_step_size = float(loglines[line].split()[-1])
+                
+            if loglines[line][0:22] == 'Z-Positioning Paramter':
+                self.z_scan_velocity = float(loglines[line+1].split()[-1])
+                self.z_return_velocity= float(loglines[line+2].split()[-1])
+                self.z_slow_velocity = float(loglines[line+3].split()[-1])
+                self.z_start = float(loglines[line+5].split()[-1])
+                self.z_end = float(loglines[line+6].split()[-1])
+                self.z_unit = 'mm'
+            
+            if loglines[line][0:22] == 'Y-Positioning Paramter':
+                self.y_velocity = float(loglines[line+1].split()[-1])
+                self.y_start = float(loglines[line+2].split()[-1])
+                self.y_end = float(loglines[line+3].split()[-1])
+                self.y_step_size = float(loglines[line+4].split()[-1])
+                self.y_unit = 'mm'
+                
+        
+        #TODO actually algorithmically derive Track Numbers
+        self.tracks = {}
+        self.tracks[self.mw_track_name] = trk.track()
+        
+        for trac in self.tracks:
+            
+            file_path_dat = self.logfile.parent.joinpath('./MW-FIELD{}.DAT'.format(trac))
+            self.tracks[trac].load_mw_track(file_path_dat)
+      
+    def process_measurement(self):
+        pass
+    
+
 ##area for custom exception
 class IncompleteMetadataError(Exception):
     def __init__(self,message):

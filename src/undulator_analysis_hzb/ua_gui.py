@@ -52,34 +52,7 @@ class MainWindow(QMainWindow):
         
         #Display folder containing data to be analysed
         self.raw_data_folder_line_edit = QLineEdit()
-        
-        #Label and LineEdit for Component Name
-        self.component_name_label = QLabel('Enter Component Name')
-        self.component_name_line_edit = QLineEdit()
-        self.component_name_line_edit.textEdited.connect(self.update_component)
-        
-        #Label and Line Edit for Ident Name
-        self.ident_name_label = QLabel('Enter Ident Name')
-        self.ident_name_line_edit = QLineEdit()
-        self.ident_name_line_edit.textEdited.connect(self.update_ident)
-        
-        #Label and Line Edit for State Name
-        self.state_name_label = QLabel('Enter State of Component')
-        self.state_name_line_edit = QLineEdit()
-        self.state_name_line_edit.textEdited.connect(self.update_state)
-        
-        #Label and Line Edit for Step Number
-        self.step_number_label = QLabel('Enter Measurement Step (integer)')
-        self.step_number_line_edit = QLineEdit()
-        self.step_number_line_edit.textEdited.connect(self.update_step_number)
-        
-        
-        #Label for State Name
-        #Label for Step
-        
-        #Button to trigger analysis
-        self.button = QPushButton("Analyse Measurement")
-        self.button.clicked.connect(self.process_measurement)
+        self.raw_data_folder_line_edit.setFixedWidth(500)
         
         #Find file for results to be targeted
         self.select_processed_data_file_button = QPushButton("Select Processed Data File")
@@ -87,6 +60,38 @@ class MainWindow(QMainWindow):
         
         #Display filepath for results file
         self.processed_data_file_line_edit = QLineEdit()
+        self.processed_data_file_line_edit.setFixedWidth(500)
+        
+        #Label and LineEdit for Component Name
+        self.component_name_label = QLabel('Enter Component Name')
+        self.component_name_line_edit = QLineEdit()
+        self.component_name_line_edit.setFixedWidth(250)
+        self.component_name_line_edit.textEdited.connect(self.update_component)
+        
+        #Label and Line Edit for Ident Name
+        self.ident_name_label = QLabel('Enter Ident Name')
+        self.ident_name_line_edit = QLineEdit()
+        self.ident_name_line_edit.setFixedWidth(250)
+        self.ident_name_line_edit.textEdited.connect(self.update_ident)
+        
+        #Label and Line Edit for State Name
+        self.state_name_label = QLabel('Enter State of Component')
+        self.state_name_line_edit = QLineEdit()
+        self.state_name_line_edit.setFixedWidth(250)
+        self.state_name_line_edit.textEdited.connect(self.update_state)
+        
+        #Label and Line Edit for Step Number
+        self.step_number_label = QLabel('Enter Measurement Step (integer)')
+        self.step_number_line_edit = QLineEdit()
+        self.step_number_line_edit.setFixedWidth(250)
+        self.step_number_line_edit.textEdited.connect(self.update_step_number)
+        
+        #Button to trigger analysis
+        self.button = QPushButton("Analyse Measurement")
+        self.button.clicked.connect(self.process_measurement)
+        
+        
+
         
         #Message
         self.label = QLabel("Waiting for Processing")
