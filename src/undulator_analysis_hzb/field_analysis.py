@@ -174,5 +174,5 @@ def save_moved_wire(analysis_folder, output_file, component, ident, state, step,
    
 if __name__ == '__main__':
     save_moved_wire('D:/UE51/UE51 Measurements/Measurement 64',
-                     'D:/UE51/UE51 Measurements/campaign_UE51', 
+                     'D:/UE51/UE51 Measurements/mw_UE51.h5', 
                      'Full_Undulator', 'UE51', 'G15', '64', '1870')

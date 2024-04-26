@@ -96,6 +96,19 @@ class measurement(object):
     def define_logfile(self,logfile_path):
         self.logfile = logfile_path
         
+    def save_measurement_group(self, grp):
+        for track in self.tracks:
+            #are you sure you need to create another group here?
+            trk = grp.require_group('{}'.format(track))
+            trk.require_dataset('{}'.format(track), shape = self.tracks[track].dvm_data.shape, dtype = self.tracks[track].dvm_data.dtype)
+            
+            trk[str(track)][...] = self.tracks[track].dvm_data
+            trk[str(track)].attrs['unit'] = 'V'
+            #TODO don't forget to build up metadata as attributes
+            
+            print (trk)
+        
+        
     
 class granite_bank_measurement(measurement):
     """
@@ -1002,7 +1015,70 @@ class moved_wire_measurement(measurement):
             self.tracks[trac].load_mw_track(file_path_dat)
       
     def process_measurement(self):
-        pass
+        print('processing Moved Wire Measurement')
+        
+        #denoise the data
+        meas = list(self.tracks.keys())[0]
+        iy_map = self.tracks[meas].mw_data[:,3]<0.01
+        iz_map = self.tracks[meas].mw_data[:,4]<0.01
+        
+        #interpolate remaining data on 0.5mm interval
+        interpIy = interp.CubicSpline(self.tracks[1870].mw_data[iy_map,0],self.tracks[1870].mw_data[iy_map,1])
+        interpIz = interp.CubicSpline(self.tracks[1870].mw_data[iz_map,0],self.tracks[1870].mw_data[iz_map,2])
+        
+        self.z_scale = np.arange(self.tracks[1870].mw_data[:,0].min(),self.tracks[1870].mw_data[:,0].max()+0.1,0.5)
+            
+        self.mw_data_processed = np.vstack([interpIy(self.z_scale), interpIz(self.z_scale)]).T
+        
+        #IY, IZ, Noise IY, Noise IZ
+        #interpolate remaining data on 0.5mm interval
+        
+        self.processed = True
+        
+    def save_measurement_group(self,grp):
+        for item in self.__dict__:
+            if item == 'measurement_system':
+                pass
+            elif item == 'tracks':
+                pass
+            elif item == 'logfile':
+                pass
+            elif item == 'measurement_timestamp':
+                pass
+            elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
+                pass
+            
+            elif item == 'z_scale':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].make_scale('Transverse Axis')
+                grp[item].attrs['unit'] = 'mm'
+                
+            elif item == 'mw_data_processed':
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                grp[item][...] = self.mw_data_processed
+                grp[item].attrs['unit'] = 'Tmm'
+                
+            else:
+                print(item)
+                grp.attrs[item] = self.__getattribute__(item)
+        
+        
+        for track in self.tracks:
+            #are you sure you need to create another group here?
+            trk = grp.require_group('{}'.format(track))
+            trk.require_dataset('{}'.format(track), shape = self.tracks[track].mw_data.shape, dtype = self.tracks[track].mw_data.dtype)
+            
+            trk[str(track)][...] = self.tracks[track].mw_data
+            trk[str(track)].attrs['unit'] = 'V'
+            #TODO don't forget to build up metadata as attributes
+            
+            print (trk)
+        
+        #super().save_measurement_group(grp)
     
 
 ##area for custom exception
