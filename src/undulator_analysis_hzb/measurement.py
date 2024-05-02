@@ -96,6 +96,19 @@ class measurement(object):
     def define_logfile(self,logfile_path):
         self.logfile = logfile_path
         
+    def save_measurement_group(self, grp):
+        for track in self.tracks:
+            #are you sure you need to create another group here?
+            trk = grp.require_group('{}'.format(track))
+            trk.require_dataset('{}'.format(track), shape = self.tracks[track].dvm_data.shape, dtype = self.tracks[track].dvm_data.dtype)
+            
+            trk[str(track)][...] = self.tracks[track].dvm_data
+            trk[str(track)].attrs['unit'] = 'V'
+            #TODO don't forget to build up metadata as attributes
+            
+            print (trk)
+        
+        
     
 class granite_bank_measurement(measurement):
     """
@@ -136,7 +149,7 @@ class granite_bank_measurement(measurement):
     #TODO Technical Details in init
     
     def __repr__(self):
-        return 'GraniteBankMasurement()'
+        return 'GraniteBankMeasurement()'
     
     @classmethod
     def convert_to_granite_bank_measurement(cls,obj):
@@ -895,6 +908,179 @@ class granite_bank_measurement(measurement):
         print('The central value here is {}'.format(central_value))
         return line_fit_fn
             
+class moved_wire_measurement(measurement):
+    """
+    A class to describe measurements from the HZB Moved Wire System.
+    Actually also loading actual data.... 
+    Functionality should be isolated
+    """
+    
+    def __init__(self, measurement_name, **kwargs):
+        """Constructor for moved_wire_measurement.
+        
+        Date 25.04.24:
+        
+        The Moved Wire System in the Schwerlasthalle is the primary measurement system
+        for first field integral measurment of large magnet systems at Helmholtz-Zentrum
+        Berlin. It takes an integrated measurement of the X axis along a Z axis path. 
+        The measurement plane can be positioned int he vertical (Y) direction.
+        All positions relative.
+        
+        The Granite Messbank in the Schwerlasthalle is the primary measurement
+        system for 3D field mapping at Helmholtz-Zentrum Berlin. It takes a measurement
+        along the longitudinal axis X, and that axis can be positioned in the 
+        vertical (Y) and transverse (Z) directions. These are relative positions.
+        
+        Parameters
+        ----------
+        measurement : `measurement`
+            This class is subclassed from `measurement`
+            
+        Attributes
+        ----------
+        measurement_name : str
+            The name of the measurement. Often a number as a string.
+            
+        Other Parameters
+        ----------------
+        measurement_timestamp : datetime object
+            The timestamp of the measurement.
+        """
+        super(moved_wire_measurement,self).__init__(measurement_name)
+        #self.name = measurement_name
+        
+        for key, value in kwargs.items():
+            self.__setattr__(key, value)
+    
+    def __repr__(self):
+        return 'MovedWireMeasurement()'
+    
+    @classmethod
+    def convert_to_moved_wire_measurement(cls,obj):
+        obj.__class__ = moved_wire_measurement
+        
+    def read_logfile_metadata(self):
+        f = open(self.logfile, 'r')
+        loglines = f.readlines()
+        print ('log data read into loglines')
+        
+        for line in range(len(loglines)):
+            if loglines[line][0:4] == 'Date':
+                self.measurement_timestamp = dt.datetime.strptime(loglines[line].split()[1] +
+                                                                  ' ' +
+                                                                  loglines[line].split()[2],'%d-%b-%y %H:%M:%S')
+            
+#            if loglines[line].split()[0] == 'Operator:':
+#                self.operator = loglines[line].split()[1]
+            if loglines[line][0:10] == 'First-Run:':
+                self.mw_track_name = int(loglines[line].split()[1])
+
+            
+            if loglines[line][0:15] == 'DAQ   Parameter':
+                self.daq_scale_factor = float(loglines[line+1].split()[-1])
+                self.daq_agilent_range = float(loglines[line+3].split()[-1])
+                self.daq_agilent_aperture = float(loglines[line+4].split()[-1])
+                self.daq_amplifier_scale_factor = float(loglines[line+5].split()[-1])
+                self.daq_trigger_delay = float(loglines[line+6].split()[-1])
+                self.daq_wait_digitax_pos = float(loglines[line+7].split()[-1])
+                self.daq_proc_time = float(loglines[line+8].split()[-1])
+                
+            
+            if loglines[line][0:18] == 'applied stepsize :':
+                self.z_step_size = float(loglines[line].split()[-1])
+                
+            if loglines[line][0:22] == 'Z-Positioning Paramter':
+                self.z_scan_velocity = float(loglines[line+1].split()[-1])
+                self.z_return_velocity= float(loglines[line+2].split()[-1])
+                self.z_slow_velocity = float(loglines[line+3].split()[-1])
+                self.z_start = float(loglines[line+5].split()[-1])
+                self.z_end = float(loglines[line+6].split()[-1])
+                self.z_unit = 'mm'
+            
+            if loglines[line][0:22] == 'Y-Positioning Paramter':
+                self.y_velocity = float(loglines[line+1].split()[-1])
+                self.y_start = float(loglines[line+2].split()[-1])
+                self.y_end = float(loglines[line+3].split()[-1])
+                self.y_step_size = float(loglines[line+4].split()[-1])
+                self.y_unit = 'mm'
+                
+        
+        #TODO actually algorithmically derive Track Numbers
+        self.tracks = {}
+        self.tracks[self.mw_track_name] = trk.track()
+        
+        for trac in self.tracks:
+            
+            file_path_dat = self.logfile.parent.joinpath('./MW-FIELD{}.DAT'.format(trac))
+            self.tracks[trac].load_mw_track(file_path_dat)
+      
+    def process_measurement(self):
+        print('processing Moved Wire Measurement')
+        
+        #denoise the data
+        meas = list(self.tracks.keys())[0]
+        iy_map = self.tracks[meas].mw_data[:,3]<0.01
+        iz_map = self.tracks[meas].mw_data[:,4]<0.01
+        
+        #interpolate remaining data on 0.5mm interval
+        interpIy = interp.CubicSpline(self.tracks[1870].mw_data[iy_map,0],self.tracks[1870].mw_data[iy_map,1])
+        interpIz = interp.CubicSpline(self.tracks[1870].mw_data[iz_map,0],self.tracks[1870].mw_data[iz_map,2])
+        
+        self.z_scale = np.arange(self.tracks[1870].mw_data[:,0].min(),self.tracks[1870].mw_data[:,0].max()+0.1,0.5)
+            
+        self.mw_data_processed = np.vstack([interpIy(self.z_scale), interpIz(self.z_scale)]).T
+        
+        #IY, IZ, Noise IY, Noise IZ
+        #interpolate remaining data on 0.5mm interval
+        
+        self.processed = True
+        
+    def save_measurement_group(self,grp):
+        for item in self.__dict__:
+            if item == 'measurement_system':
+                pass
+            elif item == 'tracks':
+                pass
+            elif item == 'logfile':
+                pass
+            elif item == 'measurement_timestamp':
+                pass
+            elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
+                pass
+            
+            elif item == 'z_scale':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].make_scale('Transverse Axis')
+                grp[item].attrs['unit'] = 'mm'
+                
+            elif item == 'mw_data_processed':
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                grp[item][...] = self.mw_data_processed
+                grp[item].attrs['unit'] = 'Tmm'
+                
+            else:
+                print(item)
+                grp.attrs[item] = self.__getattribute__(item)
+        
+        
+        for track in self.tracks:
+            #are you sure you need to create another group here?
+            trk = grp.require_group('{}'.format(track))
+            trk.require_dataset('{}'.format(track), shape = self.tracks[track].mw_data.shape, dtype = self.tracks[track].mw_data.dtype)
+            
+            trk[str(track)][...] = self.tracks[track].mw_data
+            trk[str(track)].attrs['unit'] = 'V'
+            #TODO don't forget to build up metadata as attributes
+            
+            print (trk)
+        
+        #super().save_measurement_group(grp)
+    
+
 ##area for custom exception
 class IncompleteMetadataError(Exception):
     def __init__(self,message):
