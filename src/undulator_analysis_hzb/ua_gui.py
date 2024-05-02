@@ -22,7 +22,8 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QFileDialog, 
     QLineEdit,
-    QGridLayout
+    QGridLayout,
+    QComboBox
 )
 
 class MainWindow(QMainWindow):
@@ -38,6 +39,7 @@ class MainWindow(QMainWindow):
         self.ident = None
         self.meas_state = None
         self.step_number = None
+        self.meas_type = None
         
         
         #set the window title
@@ -53,6 +55,7 @@ class MainWindow(QMainWindow):
         #Display folder containing data to be analysed
         self.raw_data_folder_line_edit = QLineEdit()
         self.raw_data_folder_line_edit.setFixedWidth(500)
+        self.raw_data_folder_line_edit.textEdited.connect(self.set_raw_data_folder)
         
         #Find file for results to be targeted
         self.select_processed_data_file_button = QPushButton("Select Processed Data File")
@@ -61,6 +64,7 @@ class MainWindow(QMainWindow):
         #Display filepath for results file
         self.processed_data_file_line_edit = QLineEdit()
         self.processed_data_file_line_edit.setFixedWidth(500)
+        self.processed_data_file_line_edit.textEdited.connect(self.set_processed_data_file)
         
         #Label and LineEdit for Component Name
         self.component_name_label = QLabel('Enter Component Name')
@@ -85,6 +89,16 @@ class MainWindow(QMainWindow):
         self.step_number_line_edit = QLineEdit()
         self.step_number_line_edit.setFixedWidth(250)
         self.step_number_line_edit.textEdited.connect(self.update_step_number)
+        
+        #Combo Box to choose measurement type
+        self.meas_type_label = QLabel('Choose the Measurement Equipment Used')
+        self.meas_type_cbox = QComboBox()
+        self.meas_type_cbox.addItems(['Granit Messbank', 'Moved Wire'])
+        #TODO - suggest current measurement type
+        #self.meas_type_cbox.setCurrentIndex(0)
+        self.meas_type_cbox.setFixedWidth(250)
+        self.meas_type_cbox.activated.connect(self.update_meas_type)
+        
         
         #Button to trigger analysis
         self.button = QPushButton("Analyse Measurement")
@@ -115,8 +129,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.step_number_label,5,0)
         layout.addWidget(self.step_number_line_edit,5,1)
         
-        layout.addWidget(self.button,6,0,1,2)
-        layout.addWidget(self.label,7,0,1,2)
+        layout.addWidget(self.meas_type_label,6,0)
+        layout.addWidget(self.meas_type_cbox,6,1)
+        
+        layout.addWidget(self.button,7,0,1,2)
+        layout.addWidget(self.label,8,0,1,2)
         
         widget = QWidget()
         
@@ -125,21 +142,36 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
         
     def process_measurement(self):
-        self.status = fa.process_granit_bank(self.raw_data_folder_path,
-                                             self.proc_data_file_path[0], 
-                                             self.component, 
-                                             self.ident,
-                                             self.meas_state,
-                                             self.step_number )
+        if self.meas_type == 'Granit Messbank':
+            self.status = fa.process_granit_bank(self.raw_data_folder_path,
+                                                 self.proc_data_file_path[0], 
+                                                 self.component, 
+                                                 self.ident,
+                                                 self.meas_state,
+                                                 self.step_number )
+        elif self.meas_type == 'Moved Wire':
+            self.status = fa.process_moved_wire(self.raw_data_folder_path,
+                                                 self.proc_data_file_path[0], 
+                                                 self.component, 
+                                                 self.ident,
+                                                 self.meas_state,
+                                                 self.step_number )
+            
         self.label.setText('{} {}'.format(self.raw_data_folder_line_edit.text(),self.status))
         
     def select_raw_data_folder(self):
         self.raw_data_folder_path = QFileDialog.getExistingDirectory(self, 'Select a Measurement Data Folder','D:/UE51/UE51 Measurements')
         self.raw_data_folder_line_edit.setText(self.raw_data_folder_path)
         
+    def set_raw_data_folder(self):
+        self.raw_data_folder_path = self.raw_data_folder_line_edit.text()
+        
     def select_processed_data_file(self):
         self.proc_data_file_path = QFileDialog.getOpenFileName(self,'Select a Processed Data File', 'D:/UE51/UE51 Measurements',"HDF5 Files (*.h5)")
         self.processed_data_file_line_edit.setText(self.proc_data_file_path[0])
+        
+    def set_processed_data_file(self):
+        self.proc_data_file_path = (self.processed_data_file_line_edit.text(),self.proc_data_file_path[1])
         
     def update_component(self):
         self.component = self.component_name_line_edit.text()
@@ -152,6 +184,9 @@ class MainWindow(QMainWindow):
     
     def update_step_number(self):
         self.step_number = self.step_number_line_edit.text()
+        
+    def update_meas_type(self):
+        self.meas_type = self.meas_type_cbox.currentText()
 
 #This bit is the running of the app
 app = QApplication(sys.argv)
