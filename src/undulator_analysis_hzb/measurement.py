@@ -273,25 +273,36 @@ class granite_bank_measurement(measurement):
         u, c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
         interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[c,0],
                                         self.tracks[trac].dvm_data[c,1])
+        interpdvmz = interp.CubicSpline(self.tracks[trac].dvm_data[c,0],
+                                        self.tracks[trac].dvm_data[c,2])
         small_step = 0.05
         x_scale = np.arange(np.min(self.tracks[trac].dvm_data[:,0]),
                             np.max(self.tracks[trac].dvm_data[:,0]),
                             small_step)
-        dvm_x = interpdvmy(x_scale)
+        dvm_y = interpdvmy(x_scale)
+        dvm_z = interpdvmz(x_scale)
+        
+        if np.mean(np.abs(dvm_y))>np.mean(np.abs(dvm_z)):
+            dvm_x = dvm_y
+        else:
+            dvm_x = dvm_z
         
         #find peaks
-        dvm_x_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.95*np.max(dvm_x))
+        dvm_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.01*np.max(dvm_x))
+        
+        
+
         #find central peak
-        dvm_x_peaks_centre_ind = int(np.floor((dvm_x_peaks[0].__len__()+1)/2))
+        dvm_peaks_centre_ind = int(np.floor((dvm_peaks[0].__len__()+1)/2))
         #location of central peak
-        x_mid = x_scale[dvm_x_peaks[0][dvm_x_peaks_centre_ind]]
+        x_mid = x_scale[dvm_peaks[0][dvm_peaks_centre_ind]]
         x_mid_round = np.round(x_mid,2)
         #find number of periods
-        num_periods = dvm_x_peaks[0].__len__()/2
+        num_periods = dvm_peaks[0].__len__()/2
         
         #find undulator period length
-        self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
-        self.period_len_calc = np.abs(small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power])
+        self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_peaks[0][0]:dvm_peaks[0][-1]])))
+        self.period_len_calc = np.abs(small_step*1/np.fft.fftfreq(dvm_x[dvm_peaks[0][0]:dvm_peaks[0][-1]].__len__())[self.period_power])
         #
         ####UNTIL HERE
         #from here each track needs its own information, for phase error calculation etc
@@ -301,15 +312,23 @@ class granite_bank_measurement(measurement):
             self.tracks[trac].u, self.tracks[trac].c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
             self.tracks[trac].interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[self.tracks[trac].c,0],
                                             self.tracks[trac].dvm_data[self.tracks[trac].c,1])
+            self.tracks[trac].interpdvmz = interp.CubicSpline(self.tracks[trac].dvm_data[self.tracks[trac].c,0],
+                                            self.tracks[trac].dvm_data[self.tracks[trac].c,2])
             #where can this be parameterised?
             small_step = 0.05
             x_scale = np.arange(np.min(self.tracks[trac].dvm_data[:,0]),
                                 np.max(self.tracks[trac].dvm_data[:,0]),
                                 small_step)
-            self.tracks[trac].dvm_x = self.tracks[trac].interpdvmy(x_scale)
+            self.tracks[trac].dvm_y = self.tracks[trac].interpdvmy(x_scale)
+            self.tracks[trac].dvm_z = self.tracks[trac].interpdvmz(x_scale)
+            
+            if np.mean(np.abs(self.tracks[trac].dvm_y))>np.mean(np.abs(self.tracks[trac].dvm_z)):
+                self.tracks[trac].dvm_x = self.tracks[trac].dvm_y
+            else:
+                self.tracks[trac].dvm_x = self.tracks[trac].dvm_z
             
             #find peaks
-            self.tracks[trac].dvm_x_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.95*np.max(self.tracks[trac].dvm_x))
+            self.tracks[trac].dvm_peaks = signal.find_peaks(np.abs(self.tracks[trac].dvm_x), height = 0.01*np.max(self.tracks[trac].dvm_x))
             #find central peak
             self.tracks[trac].dvm_x_peaks_centre_ind = int(np.floor((self.tracks[trac].dvm_x_peaks[0].__len__()+1)/2))
             #location of central peak

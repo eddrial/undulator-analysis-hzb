@@ -95,7 +95,7 @@ class MainWindow(QMainWindow):
         self.meas_type_cbox = QComboBox()
         self.meas_type_cbox.addItems(['Granit Messbank', 'Moved Wire'])
         #TODO - suggest current measurement type
-        #self.meas_type_cbox.setCurrentIndex(0)
+        self.meas_type_cbox.setCurrentIndex(0)
         self.meas_type_cbox.setFixedWidth(250)
         self.meas_type_cbox.activated.connect(self.update_meas_type)
         
