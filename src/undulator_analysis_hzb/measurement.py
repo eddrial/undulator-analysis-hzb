@@ -1023,10 +1023,10 @@ class moved_wire_measurement(measurement):
         iz_map = self.tracks[meas].mw_data[:,4]<0.01
         
         #interpolate remaining data on 0.5mm interval
-        interpIy = interp.CubicSpline(self.tracks[1870].mw_data[iy_map,0],self.tracks[1870].mw_data[iy_map,1])
-        interpIz = interp.CubicSpline(self.tracks[1870].mw_data[iz_map,0],self.tracks[1870].mw_data[iz_map,2])
+        interpIy = interp.CubicSpline(self.tracks[meas].mw_data[iy_map,0],self.tracks[meas].mw_data[iy_map,1])
+        interpIz = interp.CubicSpline(self.tracks[meas].mw_data[iz_map,0],self.tracks[meas].mw_data[iz_map,2])
         
-        self.z_scale = np.arange(self.tracks[1870].mw_data[:,0].min(),self.tracks[1870].mw_data[:,0].max()+0.1,0.5)
+        self.z_scale = np.arange(self.tracks[meas].mw_data[:,0].min(),self.tracks[meas].mw_data[:,0].max()+0.1,0.5)
             
         self.mw_data_processed = np.vstack([interpIy(self.z_scale), interpIz(self.z_scale)]).T
         
