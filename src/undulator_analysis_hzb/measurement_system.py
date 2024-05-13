@@ -96,6 +96,11 @@ class Measurement_System(object):
         self.y_calib_senis = np.genfromtxt(y_file)
         self.z_calib_senis = np.genfromtxt(z_file)
         
+    def add_background_measurement(self,us_ds_background = np.zeros((2,2))):
+        #[UD][Dir] - UD is Upstream/Downstream, Dir is Y(vert) or Z (horz)
+        
+        self.us_ds_background = us_ds_background
+        
 
     def save_measurement_system_group(self,grp):
         for item in self.__dict__:

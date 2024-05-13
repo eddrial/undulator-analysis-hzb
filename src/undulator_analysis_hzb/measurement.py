@@ -245,6 +245,7 @@ class granite_bank_measurement(measurement):
         self.processed : bool
             The 'has this measurement been processed' variable.
         """
+        #
         
         #create interpolation of y,z calib curves
         interpy = interp.CubicSpline(self.measurement_system.y_calib_senis[:,0],
@@ -259,8 +260,86 @@ class granite_bank_measurement(measurement):
         for trac in self.tracks:
             mins = np.append(mins, np.min(self.tracks[trac].dvm_data[:,0]))
             maxs = np.append(maxs, np.max(self.tracks[trac].dvm_data[:,0]))
+        small_step = 0.05
             
         print ('mins: {} \n maxs: {}'.format(mins,maxs))
+        
+        self.x_scale = np.arange(np.max(mins),
+                            np.min(maxs),
+                            small_step)
+        
+        y_tracks = int(1+(self.y_end-self.y_start)/self.y_step)
+        z_tracks = int(1+(self.z_end-self.z_start)/self.z_step)
+        self.DVM_array = np.zeros([self.x_scale.__len__(),y_tracks,z_tracks,2])
+        #rebase DVM data onto a regular grid
+        
+        i = 0
+        #for track in tracks
+        for trac in self.tracks:
+            #rebase measurement
+            self.DVM_array[:,0,i,:] = self.tracks[trac].rebase_track(self.x_scale)
+            
+            i+=1
+        
+        
+        self.B_array = np.zeros([self.x_scale.__len__(),y_tracks,z_tracks,2])
+        self.B_array[:,:,:,0] = interpy(self.DVM_array[:,:,:,0])
+        self.B_array[:,:,:,1] = interpz(self.DVM_array[:,:,:,1])
+        
+        #subtract background
+        self.B_array_bg_subtracted = np.zeros(self.B_array.shape)
+        
+        #for each track in B Array
+        #    first element = is - soll
+        #    last element  - ist - soll
+        
+        self.measurement_system
+        
+        for trak in range(self.B_array.shape[2]):
+            sub_to_background_BY_ar =  np.linspace(self.B_array[0,0,trak,0]-self.measurement_system.us_ds_background[1,0],self.B_array[-1,0,trak,0]-self.measurement_system.us_ds_background[1,1], num = self.B_array.shape[0], endpoint = True)
+            sub_to_background_BZ_ar =  np.linspace(self.B_array[0,0,trak,1]-self.measurement_system.us_ds_background[0,0],self.B_array[-1,0,trak,1]-self.measurement_system.us_ds_background[0,1], num = self.B_array.shape[0], endpoint = True)
+        
+        #self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
+        #self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        
+            a = np.vstack([sub_to_background_BY_ar,sub_to_background_BZ_ar])
+        
+            self.B_array_bg_subtracted[:,:,trak,:] = self.B_array[:,:,trak,:]-a[:, None, :].T
+        
+        
+    
+        
+        self.processed = True
+        
+        return self.processed
+    
+    
+    def process_measurement_too_busy(self):
+        """An instance method to process the raw DVM data to B Fields
+        
+        Expanded text. 
+        
+        Modifies main_x_range, B_array and processed
+        
+        Uses tracks and measurement_system
+        
+        Returns
+        -------
+        self.B_array : numpy.ndarray
+            The processed DVM array as a B_array.
+        self.main_x_range : numpy.ndarray
+            The main x range of the processed B array.
+        self.processed : bool
+            The 'has this measurement been processed' variable.
+        """
+        #This function currently does too many things... break up to fix
+        
+        #1. Glue together different tracks
+        #2. Interpolates Hall calibrations file. (IT SHOULD END HERE)
+        #But also does...
+        
+        
+        
         #and the minimum 'max' of our x range
         
         #find central track (or nominate primary track) - what is actually going on here?
@@ -476,6 +555,13 @@ class granite_bank_measurement(measurement):
         self.analysed : bool
             A boolean to identify if the measurement has been 'fully' analysed
         """
+        #Characteristics of B Field
+        self.calculate_number_of_periods()
+        self.calculate_period_length()
+        self.calculate_B0()
+        self.calculate_Beff()
+        self.calculate_K0()
+        self.calculate_Keff()
         
         #switch to calculate first integral
         if calc_F == True:
@@ -500,6 +586,67 @@ class granite_bank_measurement(measurement):
         
         return self.analysed
     
+    def calculate_number_of_periods(self):
+        self.num_periods_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    dvm_x = self.DVM_array[:,ty,tz,dir]
+                     #find peaks
+                    dvm_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.01*np.max(dvm_x))
+                    
+                    #find central peak
+                    dvm_peaks_centre_ind = int(np.floor((dvm_peaks[0].__len__()+1)/2))
+                    #location of central peak
+                    x_mid = self.x_scale[dvm_peaks[0][dvm_peaks_centre_ind]]
+                    x_mid_round = np.round(x_mid,2)
+                    #find number of periods
+                    self.num_periods_array[ty,tz,dir] = dvm_peaks[0].__len__()/2
+    
+    def calculate_period_length(self):
+        self.period_len_calc_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        self.period_len_round_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    B_x = self.B_array[:,ty,tz,dir]
+                     #find peaks
+                    B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
+                    
+                    period_power = np.argmax(np.abs(np.fft.fft(self.B_array[B_peaks[0][0]:B_peaks[0][-1],ty,tz,dir])))
+                    period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(self.B_array[B_peaks[0][0]:B_peaks[0][-1],ty,tz,dir].__len__())[period_power])
+                    
+                    self.period_len_calc_array[ty,tz,dir] = period_len_calc
+                    self.period_len_round_array[ty,tz,dir] = np.round(period_len_calc,1)
+    
+    def calculate_B0(self):
+        self.B0_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    B_x = self.B_array[:,ty,tz,dir]
+                     #find peaks
+                    B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
+                    
+                    self.B0_array[ty,tz,dir] = np.mean(B_peaks[1]['peak_heights'][4:-4])
+                    
+    def calculate_Beff(self):
+        self.Beff_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    pass
+                
+    def calculate_K0(self):
+        self.K0_array = 0.0934 *np.multiply(self.period_len_calc_array,self.B0_array)
+    
+    def calculate_Keff(self):
+        self.Keff_array = 0.0934 *np.multiply(self.period_len_calc_array,self.Beff_array)
+    
     def calculate_I1(self):
         """An instance method to calculate the first integral from I1 array.
         
@@ -513,9 +660,9 @@ class granite_bank_measurement(measurement):
         print('I am calculating I1')
         #self.I1 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.B_array[:,:,:,:], axis = 0)
         
-        self.I1_trap = integ.cumulative_trapezoid(self.B_array[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I1_trap = integ.cumulative_trapezoid(self.B_array[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
         
-        self.I1_trap_bg = integ.cumulative_trapezoid(self.B_array_bg_subtracted[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I1_trap_bg = integ.cumulative_trapezoid(self.B_array_bg_subtracted[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
         return self.I1_trap
     
     def calculate_smoothed_I1(self):
@@ -536,7 +683,7 @@ class granite_bank_measurement(measurement):
         for i in range (self.I1_trap.shape[1]):
             for j in range (self.I1_trap.shape[2]):
                 #print('i: {}, j: {}'.format(i,j))
-                self.I1_smooth[:,i,j,:] = nd.uniform_filter1d(self.I1_trap[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
+                self.I1_smooth[:,i,j,:] = nd.uniform_filter1d(self.I1_trap[:,i,j,:], size = abs(int(self.period_len_calc_array[i][j]/(self.x_scale[1]-self.x_scale[0]))), axis = 0)
                 
         
         #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
