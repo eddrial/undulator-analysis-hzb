@@ -274,7 +274,7 @@ class granite_bank_measurement(measurement):
         #rebase DVM data onto a regular grid
         
         i = 0
-        #for track in tracks
+        #for track in tracks - needs to be modified for 3d volume - ER 13.5.24
         for trac in self.tracks:
             #rebase measurement
             self.DVM_array[:,0,i,:] = self.tracks[trac].rebase_track(self.x_scale)
@@ -293,8 +293,6 @@ class granite_bank_measurement(measurement):
         #    first element = is - soll
         #    last element  - ist - soll
         
-        self.measurement_system
-        
         for trak in range(self.B_array.shape[2]):
             sub_to_background_BY_ar =  np.linspace(self.B_array[0,0,trak,0]-self.measurement_system.us_ds_background[1,0],self.B_array[-1,0,trak,0]-self.measurement_system.us_ds_background[1,1], num = self.B_array.shape[0], endpoint = True)
             sub_to_background_BZ_ar =  np.linspace(self.B_array[0,0,trak,1]-self.measurement_system.us_ds_background[0,0],self.B_array[-1,0,trak,1]-self.measurement_system.us_ds_background[0,1], num = self.B_array.shape[0], endpoint = True)
@@ -306,8 +304,22 @@ class granite_bank_measurement(measurement):
         
             self.B_array_bg_subtracted[:,:,trak,:] = self.B_array[:,:,trak,:]-a[:, None, :].T
         
+        #this array is 
+        self.B_array_bg_subtracted_peaks_idx = np.zeros(self.B_array.shape, dtype = int)
+        self.B_array_bg_subtracted_peaks_val = np.zeros(self.B_array.shape)
+        longest_B_peaks = 0
         
-    
+        for i in range(self.B_array.shape[1]):
+            for j in range(self.B_array.shape[2]):
+                for dir in range(self.B_array.shape[3]):
+                    tst =signal.find_peaks(np.abs(self.B_array_bg_subtracted[:,i,j,dir]), height = 0.05*np.max(self.B_array_bg_subtracted[:,i,j,dir]))
+                    self.B_array_bg_subtracted_peaks_idx[:tst[0].__len__(),i,j,dir] =tst[0] 
+                    self.B_array_bg_subtracted_peaks_val[:tst[0].__len__(),i,j,dir] =tst[1]['peak_heights']
+                    if tst[0].__len__()>longest_B_peaks:
+                        longest_B_peaks = tst[0].__len__()
+        
+        self.B_array_bg_subtracted_peaks_idx = self.B_array_bg_subtracted_peaks_idx[:longest_B_peaks,:,:,:]
+        self.B_array_bg_subtracted_peaks_val = self.B_array_bg_subtracted_peaks_val[:longest_B_peaks,:,:,:]
         
         self.processed = True
         
@@ -578,7 +590,7 @@ class granite_bank_measurement(measurement):
         if calc_Phi == True:
             #TODO self.calculate_phase_error()
             #self.calculate_phase_error()
-#            self.calculate_phase_error_array()
+            self.calculate_phase_error_array()
             print('pause here end of phase calculation')
         
         if np.all([calc_F, calc_S, calc_T, calc_Phi] ) == True:
@@ -682,8 +694,9 @@ class granite_bank_measurement(measurement):
         self.I1_smooth = np.zeros(self.I1_trap.shape)
         for i in range (self.I1_trap.shape[1]):
             for j in range (self.I1_trap.shape[2]):
+                for dir in range(self.I1_trap.shape[3]):
                 #print('i: {}, j: {}'.format(i,j))
-                self.I1_smooth[:,i,j,:] = nd.uniform_filter1d(self.I1_trap[:,i,j,:], size = abs(int(self.period_len_calc_array[i][j]/(self.x_scale[1]-self.x_scale[0]))), axis = 0)
+                    self.I1_smooth[:,i,j,dir] = nd.uniform_filter1d(self.I1_trap[:,i,j,dir], size = abs(int(self.period_len_calc_array[i][j][dir]/(self.x_scale[1]-self.x_scale[0]))), axis = 0)
                 
         
         #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
@@ -703,8 +716,8 @@ class granite_bank_measurement(measurement):
         """
         print('I am calculating I2')
 #        self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
-        self.I2_trap = integ.cumulative_trapezoid(self.I1_trap[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
-        self.I2_trap_bg = integ.cumulative_trapezoid(self.I1_trap_bg[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I2_trap = integ.cumulative_trapezoid(self.I1_trap[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
+        self.I2_trap_bg = integ.cumulative_trapezoid(self.I1_trap_bg[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
         
         return self.I2_trap
     
@@ -752,8 +765,9 @@ class granite_bank_measurement(measurement):
         self.smoothed_trajectory = np.zeros(self.trajectory.shape)
         for i in range (self.trajectory.shape[1]):
             for j in range (self.trajectory.shape[2]):
+                for dir in range (self.trajectory.shape[3]):
                 #print('i: {}, j: {}'.format(i,j))
-                self.smoothed_trajectory[:,i,j,:] = nd.uniform_filter1d(self.trajectory[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
+                    self.smoothed_trajectory[:,i,j,dir] = nd.uniform_filter1d(self.trajectory[:,i,j,dir], size = abs(int(self.period_len_calc_array[i][j][dir]/(self.x_scale[1]-self.x_scale[0]))), axis = 0)
                 
         
         #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
@@ -830,58 +844,61 @@ class granite_bank_measurement(measurement):
         beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
         
         #This is deflection in radians in our given machine, BESSY. All trajecotries OK
-        defl = self.I1_trap*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
+        defl = self.I1_trap_bg*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
         #transverse velocity beta_t. All trajectories OK.
         beta_t = beta * np.sqrt(defl[:,:,:,0]**2 + defl[:,:,:,1]**2)
         
         self.phase_error_array_rms = np.zeros(beta_t.shape[1:])
-        self.loc_K = np.zeros(beta_t.shape[1:])
-        phijconsts = np.zeros(beta_t.shape[1:])
-        local_phase_error_rad_array = np.zeros(beta_t.shape[1:])
-        self.local_phase_error_deg_array = np.zeros(beta_t.shape[1:])
-        self.phase_error_array = {}
-        self.phase_error_array_j = np.zeros(((self.B_array_bg_subtracted_peaks[0][0]-self.B_array_bg_subtracted_peaks[0][0][0])[0:-1].__len__(),
-                                            beta_t.shape[1],
-                                            beta_t.shape[2]))
+        self.loc_K = np.zeros(beta_t.shape[1:]+(2,))
+        phijconsts = np.zeros(beta_t.shape[1:]+(2,))
+        local_phase_error_rad_array = np.zeros(beta_t.shape[1:]+(2,))
+        self.local_phase_error_deg_array = np.zeros(beta_t.shape[1:]+(2,))
+        self.phase_error_array = np.zeros(self.B_array_bg_subtracted.shape)
+        self.phase_error_array_j = np.zeros(self.B_array_bg_subtracted_peaks_idx.shape)
         
         
         #reduce X range from first to last pole and integrate the path.
-        for i in range(self.phase_error_array_j.shape[2]):
-            X = self.main_x_range[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1]
-        #integrate the integrand gamma^2*beta_T^2 over reduced range
-            Y = integ.cumulative_trapezoid(gamma**2*beta_t[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1,0,i]**2,
-                                           self.main_x_range[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1],
-                                           initial = 0)
-        
-        #fit the resulting integrand
-            fit = np.polyfit(X, Y, 1)
-        #create the fit function
-            linear_baseline = np.poly1d(fit) # create the linear baseline function
-        
-        #this subtracts the integrated K^2/2
-            new_Y = Y-linear_baseline(X)
-        #plt.plot(X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]],new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]])
-        
-        #this again gives the positions of the poles. perhaps unnecessary
-        #j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
-        
-        #phase error all the way through the device
-            self.phase_error_array[i] = new_Y
-        
-        #phase error at each pole. plots what I would normally expect
-            self.phase_error_array_j[:,0,i] = new_Y[(self.B_array_bg_subtracted_peaks[i][0]-self.B_array_bg_subtracted_peaks[i][0][0])[0:-1]]
-        
-        #determine local K from slope
-            self.loc_K[0,i] = np.sqrt(2*linear_baseline[1])
-        
-        #these are the constants from the front of the equation
-            phijconsts[0,i] = (2*np.pi/self.period_len_calc_array[i])/(1 + self.loc_K[0,i]**2/2)
-        
-        #take the mean of the collection
-            local_phase_error_rad_array[0,i] = np.mean(phijconsts[0,i]*np.abs(self.phase_error_array_j[:,0,i]))
-        
-        #multiply up to degrees
-            self.local_phase_error_deg_array[0,i] = local_phase_error_rad_array[0,i]*180/np.pi
+        for i in range(self.phase_error_array_j.shape[1]):
+            for j in range(self.phase_error_array_j.shape[2]):
+                for dir in range(self.phase_error_array_j.shape[3]):
+                    #limited to actual peaks of that track
+                    lim_x = self.B_array_bg_subtracted_peaks_idx[:,i,j,dir]!=0
+                    X = self.x_scale[self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][0]:self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][-1]+1]
+                #integrate the integrand gamma^2*beta_T^2 over reduced range
+                    Y = integ.cumulative_trapezoid(gamma**2*beta_t[self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][0]:self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][-1]+1,i,j]**2,
+                                                   X,
+                                                   initial = 0)
+                
+                #fit the resulting integrand
+                    fit = np.polyfit(X, Y, 1)
+                #create the fit function
+                    linear_baseline = np.poly1d(fit) # create the linear baseline function
+                
+                #this subtracts the integrated K^2/2
+                    new_Y = Y-linear_baseline(X)
+                #plt.plot(X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]],new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]])
+                
+                #this again gives the positions of the poles. perhaps unnecessary
+                #j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+                
+                #phase error all the way through the device / but I might not care to keep it...
+                    self.phase_error_array[:len(new_Y),i,j,dir] = new_Y
+                
+                #phase error at each pole. plots what I would normally expect
+                    new_Y_idxs = self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir]-self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][0]
+                    self.phase_error_array_j[:len(new_Y_idxs),i,j,dir] = new_Y[new_Y_idxs]
+                
+                #determine local K from slope
+                    self.loc_K[i,j,dir] = np.sqrt(2*linear_baseline[1])
+                
+                #these are the constants from the front of the equation
+                    phijconsts[i,j,dir] = (2*np.pi/self.period_len_calc_array[i,j,dir])/(1 + self.loc_K[i,j,dir]**2/2)
+                
+                #take the mean of the collection
+                    local_phase_error_rad_array[i,j,dir] = np.mean(phijconsts[i,j,dir]*np.abs(self.phase_error_array_j[lim_x,i,j,dir]))
+                
+                #multiply up to degrees
+                    self.local_phase_error_deg_array[i,j,dir] = local_phase_error_rad_array[i,j,dir]*180/np.pi
         
         print('local phase error is {}'.format(self.local_phase_error_deg_array[0,i]))
         
@@ -889,6 +906,8 @@ class granite_bank_measurement(measurement):
         
         return self.local_phase_error_deg_array
 
+    def phase_error_of_track(self):
+        pass
     
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):
