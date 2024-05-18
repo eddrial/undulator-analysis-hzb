@@ -943,7 +943,7 @@ class granite_bank_measurement(measurement):
         longest_B_peaks = 0
         
         for direction in range(input_I2.shape[1]):
-            tst =signal.find_peaks(np.abs(input_I2[:,direction]), height = 0.05*np.max(input_I2[:,direction]))
+            tst =signal.find_peaks(np.abs(i2d2[:,direction]), height = 0.05*np.max(i2d2[:,direction]))
             input_b_field_peaks_idx[:tst[0].__len__(),direction] =tst[0] 
             input_b_field_peaks_val[:tst[0].__len__(),direction] =tst[1]['peak_heights']
             if tst[0].__len__()>longest_B_peaks:
