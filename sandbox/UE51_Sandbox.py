@@ -17,15 +17,15 @@ import pathlib
 
 def UE51_Sandbox():
     
-    meas_number = 57
-    run_number = 1761
+    meas_number = 128
+    run_number = 2047
     
 # Place to store and work with the hdf5 file D:\UE51\UE51 Measurements
     #file_path = pathlib.WindowsPath('D:/Work - Laptop/UE51/UE51 Measurements/UE51.h5')
-    file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/campaign_UE51.h5')
+    file_path = pathlib.WindowsPath('D:/UE51/UE51 Measurements/tst_UE51_May.h5')
     
 #name the campaign
-    a = cmp.Campaign(file_path, campaign_name = 'UE51')
+    a = cmp.Campaign(file_path, campaign_name = 'UE51_May')
     
 #create the campaign data file
     a.create_campaign_file()
@@ -62,6 +62,7 @@ def UE51_Sandbox():
     #create the measurement system and add the granite messbank
     granite_messbank = ms.Measurement_System("Granite_Messbank")
     granite_messbank.load_hall_calibration_files(x_file, y_file, z_file)
+    granite_messbank.add_background_measurement(np.array([[-2.9e-5,1.2e-5],[-1.7e-5,1e-6]]))
     
     #read the logfile and add metadata to the measurement
     b.read_logfile_metadata()
@@ -83,11 +84,12 @@ def UE51_Sandbox():
     
 #    a.add_measurement_system(granite_messbank)
     
-    #a.save_campaign_file()
+    a.save_campaign_file()
     #a.save_measurement_system_to_file()
     print(b.logfile)
     
     #central axis finding loop
+    '''
     central_axis=np.zeros(len(b.B_peaks_x[0]))
     for i in range (len(b.B_peaks_x[0])):
         fine_z_array = np.linspace(-36,-26,1001)
@@ -114,7 +116,7 @@ def UE51_Sandbox():
     print('Pole 149 = {}'.format(line_fit_fn(149)))
     
     print('The central value here is {}'.format(line_fit_fn(75)))
-
+'''
    
 if __name__ == '__main__':
     UE51_Sandbox()

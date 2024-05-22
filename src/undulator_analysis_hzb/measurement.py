@@ -858,6 +858,18 @@ class granite_bank_measurement(measurement):
         self.phase_error_array_j = np.zeros(self.B_array_bg_subtracted_peaks_idx.shape)
         
         
+        #how to store arrays of unknown length with each other. 
+        a = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        b = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        c = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        d = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        
+        
+        all_the_as = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        all_the_bs = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        all_the_cs = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        all_the_ds = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        
         #reduce X range from first to last pole and integrate the path.
         for i in range(self.phase_error_array_j.shape[1]):
             for j in range(self.phase_error_array_j.shape[2]):
@@ -902,10 +914,25 @@ class granite_bank_measurement(measurement):
                     self.local_phase_error_deg_array[i,j,dir] = local_phase_error_rad_array[i,j,dir]*180/np.pi
                     
                 #check new func
-                a,b = self.phase_error_of_bfield_track(input_b_field = self.B_array_bg_subtracted[:,i,j])
-                c,d = self.calculate_straightened_phase_error_array(self.I2_trap_bg[:,i,j])
+                a[i,j],all_the_as[i][j] = self.phase_error_of_bfield_track(input_b_field = self.B_array[:,i,j])
+                b[i,j],all_the_bs[i][j] = self.phase_error_of_bfield_track(input_b_field = self.B_array_bg_subtracted[:,i,j])
+                #print('Phase Error is: {}, Length of Phase Plot is: {}'.format(a, b.__len__()))
+                c[i,j],all_the_cs[i][j] = self.calculate_straightened_phase_error_array(self.I2_trap[:,i,j])
+                d[i,j],all_the_ds[i][j] = self.calculate_straightened_phase_error_array(self.I2_trap_bg[:,i,j])
+                #print('Phase Error is: {}, Length of Phase Plot is: {}'.format(c, d.__len__()))
+                
+        
+        self.phase_error_per_track_b_field = a
+        self.phase_error_per_track_b_field_per_pole = all_the_as
+        self.phase_error_per_track_b_field_bg_subtracted = b
+        self.phase_error_per_track_b_field_bg_subtracted_per_pole =  all_the_bs
+        self.phase_error_per_track_b_field_straightened =c 
+        self.phase_error_per_track_b_field_straightened_per_pole = all_the_cs
+        self.phase_error_per_track_b_field_bg_subtracted_straightened = d
+        self.phase_error_per_track_b_field_bg_subtracted_straightened_per_pole = all_the_ds
         
         print('local phase error is {}'.format(self.local_phase_error_deg_array[0,i]))
+        print(all_the_bs)
         
         print('wait here')
         
@@ -992,8 +1019,10 @@ class granite_bank_measurement(measurement):
                 longest_B_peaks = tst[0].__len__()'''
         
         #calculate I1
-        input_I1 = integ.cumulative_trapezoid(input_b_field[:,:], self.x_scale, axis = 0, initial = 0.0)
-        
+        #input_I1 = integ.cumulative_trapezoid(input_b_field[:,:], self.x_scale, axis = 0, initial = 0.0)
+        input_I1 = np.zeros(input_b_field.shape)
+        input_I1[:,0] = interp.splev(self.x_scale, fI2_spl0, der = 1)
+        input_I1[:,1] = interp.splev(self.x_scale, fI2_spl1, der = 1)
         
         #This is deflection in radians in our given machine, BESSY. All trajecotries OK
         defl = input_I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
@@ -1051,7 +1080,7 @@ class granite_bank_measurement(measurement):
         #multiply up to degrees
             input_phase_error_deg_array[direction] = input_phase_error_rad_array[direction]*180/np.pi
             
-        return input_phase_error_deg_array,input_phase_error_array_j
+        return input_phase_error_deg_array,180*phijconsts[direction]*(input_phase_error_array_j[lim_x,direction])/np.pi
 
     def phase_error_of_bfield_track(self, input_b_field = None):
         print('I am calculating phase error from modified b_field')
@@ -1153,7 +1182,7 @@ class granite_bank_measurement(measurement):
         #multiply up to degrees
             input_phase_error_deg_array[direction] = input_phase_error_rad_array[direction]*180/np.pi
             
-        return input_phase_error_deg_array,input_phase_error_array_j
+        return input_phase_error_deg_array, 180*phijconsts[direction]*(input_phase_error_array_j[lim_x,direction])/np.pi
     
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):
@@ -1239,14 +1268,97 @@ class granite_bank_measurement(measurement):
                 print ('{} saved'.format(item))
                 
             elif item == 'phase_error_array':
-                for key in self.__getattribute__(item).keys(): 
-                    grp.require_dataset('{}/{}'.format(item,key), shape = self.__getattribute__(item)[key].shape, dtype = self.__getattribute__(item)[key].dtype)
-                    
-                    grp[item][str(key)][...] = self.__getattribute__(item)[key]
-                    grp[item][str(key)].attrs['unit'] = 'deg'
-                                      
-                    
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                
+                #grp[item].attrs['unit'] = 'V'
+                
                 print ('{} saved'.format(item))
+                
+            elif item == 'phase_error_per_track_b_field':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+            
+            elif item == 'phase_error_per_track_b_field_bg_subtracted':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_straightened':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_bg_subtracted_straightened':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+            
+            elif item == 'phase_error_per_track_b_field_bg_subtracted_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_straightened_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_bg_subtracted_straightened_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+                
+            elif item == 'x_scale':
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                
+                grp[item].attrs['unit'] = 'mm'
+                
+                print ('{} saved'.format(item))
+            
             elif item == 'phase_error_array_j':
                  
                 grp.require_dataset('{}'.format(item), shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
@@ -1256,6 +1368,17 @@ class granite_bank_measurement(measurement):
                                       
                     
                 print ('{} saved'.format(item))
+                
+            elif item == 'DVM_array':
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                
+                grp[item].attrs['unit'] = 'V'
+                
+                print ('{} saved'.format(item))
+                
             else:
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)
@@ -1277,8 +1400,8 @@ class granite_bank_measurement(measurement):
             #append dimensions and attributes
             
             #create x_axis dataset
-            grp.require_dataset('x_axis', shape = self.main_x_range.shape, dtype = self.main_x_range.dtype)
-            grp['x_axis'][...] = self.main_x_range
+            grp.require_dataset('x_axis', shape = self.x_scale.shape, dtype = self.x_scale.dtype)
+            grp['x_axis'][...] = self.x_scale
             grp['x_axis'].make_scale('Longitudinal Axis')
             grp['x_axis'].attrs['unit'] = 'mm'
             
