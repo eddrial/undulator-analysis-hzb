@@ -94,7 +94,6 @@ class Campaign(object):
         #component, ident, step, state?, measurement_system, measurement_timestamp
         #optional attributes
         #author, comment
-        #it creates a nested dictionary
         try:
             measurement.check_metadata()
         except Exception as e:
