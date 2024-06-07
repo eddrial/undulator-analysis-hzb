@@ -95,3 +95,8 @@ class track(object):
         rebase_DVM[:,1] = interpDVM2(x_axis_array)
         
         return rebase_DVM
+    
+    def load_mw_track(self, file_path):
+        self.mw_data = np.genfromtxt(file_path)
+        
+        return self.mw_data

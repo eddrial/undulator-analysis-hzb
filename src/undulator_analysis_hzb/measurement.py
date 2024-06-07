@@ -14,6 +14,7 @@ import scipy.ndimage as nd
 from scipy import signal
 from scipy import constants as cnst
 import matplotlib.pyplot as plt
+import copy
 
 class measurement(object):
     '''
@@ -96,6 +97,19 @@ class measurement(object):
     def define_logfile(self,logfile_path):
         self.logfile = logfile_path
         
+    def save_measurement_group(self, grp):
+        for track in self.tracks:
+            #are you sure you need to create another group here?
+            trk = grp.require_group('{}'.format(track))
+            trk.require_dataset('{}'.format(track), shape = self.tracks[track].dvm_data.shape, dtype = self.tracks[track].dvm_data.dtype)
+            
+            trk[str(track)][...] = self.tracks[track].dvm_data
+            trk[str(track)].attrs['unit'] = 'V'
+            #TODO don't forget to build up metadata as attributes
+            
+            print (trk)
+        
+        
     
 class granite_bank_measurement(measurement):
     """
@@ -136,7 +150,7 @@ class granite_bank_measurement(measurement):
     #TODO Technical Details in init
     
     def __repr__(self):
-        return 'GraniteBankMasurement()'
+        return 'GraniteBankMeasurement()'
     
     @classmethod
     def convert_to_granite_bank_measurement(cls,obj):
@@ -232,6 +246,7 @@ class granite_bank_measurement(measurement):
         self.processed : bool
             The 'has this measurement been processed' variable.
         """
+        #
         
         #create interpolation of y,z calib curves
         interpy = interp.CubicSpline(self.measurement_system.y_calib_senis[:,0],
@@ -246,8 +261,98 @@ class granite_bank_measurement(measurement):
         for trac in self.tracks:
             mins = np.append(mins, np.min(self.tracks[trac].dvm_data[:,0]))
             maxs = np.append(maxs, np.max(self.tracks[trac].dvm_data[:,0]))
+        small_step = 0.05
             
         print ('mins: {} \n maxs: {}'.format(mins,maxs))
+        
+        self.x_scale = np.arange(np.max(mins),
+                            np.min(maxs),
+                            small_step)
+        
+        y_tracks = int(1+(self.y_end-self.y_start)/self.y_step)
+        z_tracks = int(1+(self.z_end-self.z_start)/self.z_step)
+        self.DVM_array = np.zeros([self.x_scale.__len__(),y_tracks,z_tracks,2])
+        #rebase DVM data onto a regular grid
+        
+        i = 0
+        #for track in tracks - needs to be modified for 3d volume - ER 13.5.24
+        for trac in self.tracks:
+            #rebase measurement
+            self.DVM_array[:,0,i,:] = self.tracks[trac].rebase_track(self.x_scale)
+            
+            i+=1
+        
+        
+        self.B_array = np.zeros([self.x_scale.__len__(),y_tracks,z_tracks,2])
+        self.B_array[:,:,:,0] = interpy(self.DVM_array[:,:,:,0])
+        self.B_array[:,:,:,1] = interpz(self.DVM_array[:,:,:,1])
+        
+        #subtract background
+        self.B_array_bg_subtracted = np.zeros(self.B_array.shape)
+        
+        #for each track in B Array
+        #    first element = is - soll
+        #    last element  - ist - soll
+        
+        for trak in range(self.B_array.shape[2]):
+            sub_to_background_BY_ar =  np.linspace(self.B_array[0,0,trak,0]-self.measurement_system.us_ds_background[1,0],self.B_array[-1,0,trak,0]-self.measurement_system.us_ds_background[1,1], num = self.B_array.shape[0], endpoint = True)
+            sub_to_background_BZ_ar =  np.linspace(self.B_array[0,0,trak,1]-self.measurement_system.us_ds_background[0,0],self.B_array[-1,0,trak,1]-self.measurement_system.us_ds_background[0,1], num = self.B_array.shape[0], endpoint = True)
+        
+        #self.backgrBY_ar = np.linspace(self.backgrBY[0],self.backgrBY[1], num = self.B_array.shape[0], endpoint = True)
+        #self.backgrBZ_ar = np.linspace(self.backgrBZ[0],self.backgrBZ[1], num = self.B_array.shape[0], endpoint = True)
+        
+            a = np.vstack([sub_to_background_BY_ar,sub_to_background_BZ_ar])
+        
+            self.B_array_bg_subtracted[:,:,trak,:] = self.B_array[:,:,trak,:]-a[:, None, :].T
+        
+        #this array is 
+        self.B_array_bg_subtracted_peaks_idx = np.zeros(self.B_array.shape, dtype = int)
+        self.B_array_bg_subtracted_peaks_val = np.zeros(self.B_array.shape)
+        longest_B_peaks = 0
+        
+        for i in range(self.B_array.shape[1]):
+            for j in range(self.B_array.shape[2]):
+                for dir in range(self.B_array.shape[3]):
+                    tst =signal.find_peaks(np.abs(self.B_array_bg_subtracted[:,i,j,dir]), height = 0.05*np.max(self.B_array_bg_subtracted[:,i,j,dir]))
+                    self.B_array_bg_subtracted_peaks_idx[:tst[0].__len__(),i,j,dir] =tst[0] 
+                    self.B_array_bg_subtracted_peaks_val[:tst[0].__len__(),i,j,dir] =tst[1]['peak_heights']
+                    if tst[0].__len__()>longest_B_peaks:
+                        longest_B_peaks = tst[0].__len__()
+        
+        self.B_array_bg_subtracted_peaks_idx = self.B_array_bg_subtracted_peaks_idx[:longest_B_peaks,:,:,:]
+        self.B_array_bg_subtracted_peaks_val = self.B_array_bg_subtracted_peaks_val[:longest_B_peaks,:,:,:]
+        
+        self.processed = True
+        
+        return self.processed
+    
+    
+    def process_measurement_too_busy(self):
+        """An instance method to process the raw DVM data to B Fields
+        
+        Expanded text. 
+        
+        Modifies main_x_range, B_array and processed
+        
+        Uses tracks and measurement_system
+        
+        Returns
+        -------
+        self.B_array : numpy.ndarray
+            The processed DVM array as a B_array.
+        self.main_x_range : numpy.ndarray
+            The main x range of the processed B array.
+        self.processed : bool
+            The 'has this measurement been processed' variable.
+        """
+        #This function currently does too many things... break up to fix
+        
+        #1. Glue together different tracks
+        #2. Interpolates Hall calibrations file. (IT SHOULD END HERE)
+        #But also does...
+        
+        
+        
         #and the minimum 'max' of our x range
         
         #find central track (or nominate primary track) - what is actually going on here?
@@ -260,25 +365,36 @@ class granite_bank_measurement(measurement):
         u, c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
         interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[c,0],
                                         self.tracks[trac].dvm_data[c,1])
+        interpdvmz = interp.CubicSpline(self.tracks[trac].dvm_data[c,0],
+                                        self.tracks[trac].dvm_data[c,2])
         small_step = 0.05
         x_scale = np.arange(np.min(self.tracks[trac].dvm_data[:,0]),
                             np.max(self.tracks[trac].dvm_data[:,0]),
                             small_step)
-        dvm_x = interpdvmy(x_scale)
+        dvm_y = interpdvmy(x_scale)
+        dvm_z = interpdvmz(x_scale)
+        
+        if np.mean(np.abs(dvm_y))>np.mean(np.abs(dvm_z)):
+            dvm_x = dvm_y
+        else:
+            dvm_x = dvm_z
         
         #find peaks
-        dvm_x_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.95*np.max(dvm_x))
+        dvm_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.01*np.max(dvm_x))
+        
+        
+
         #find central peak
-        dvm_x_peaks_centre_ind = int(np.floor((dvm_x_peaks[0].__len__()+1)/2))
+        dvm_peaks_centre_ind = int(np.floor((dvm_peaks[0].__len__()+1)/2))
         #location of central peak
-        x_mid = x_scale[dvm_x_peaks[0][dvm_x_peaks_centre_ind]]
+        x_mid = x_scale[dvm_peaks[0][dvm_peaks_centre_ind]]
         x_mid_round = np.round(x_mid,2)
         #find number of periods
-        num_periods = dvm_x_peaks[0].__len__()/2
+        num_periods = dvm_peaks[0].__len__()/2
         
         #find undulator period length
-        self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]])))
-        self.period_len_calc = np.abs(small_step*1/np.fft.fftfreq(dvm_x[dvm_x_peaks[0][0]:dvm_x_peaks[0][-1]].__len__())[self.period_power])
+        self.period_power = np.argmax(np.abs(np.fft.fft(dvm_x[dvm_peaks[0][0]:dvm_peaks[0][-1]])))
+        self.period_len_calc = np.abs(small_step*1/np.fft.fftfreq(dvm_x[dvm_peaks[0][0]:dvm_peaks[0][-1]].__len__())[self.period_power])
         #
         ####UNTIL HERE
         #from here each track needs its own information, for phase error calculation etc
@@ -288,15 +404,23 @@ class granite_bank_measurement(measurement):
             self.tracks[trac].u, self.tracks[trac].c = np.unique(self.tracks[trac].dvm_data[:,0], return_index = True)
             self.tracks[trac].interpdvmy = interp.CubicSpline(self.tracks[trac].dvm_data[self.tracks[trac].c,0],
                                             self.tracks[trac].dvm_data[self.tracks[trac].c,1])
+            self.tracks[trac].interpdvmz = interp.CubicSpline(self.tracks[trac].dvm_data[self.tracks[trac].c,0],
+                                            self.tracks[trac].dvm_data[self.tracks[trac].c,2])
             #where can this be parameterised?
             small_step = 0.05
             x_scale = np.arange(np.min(self.tracks[trac].dvm_data[:,0]),
                                 np.max(self.tracks[trac].dvm_data[:,0]),
                                 small_step)
-            self.tracks[trac].dvm_x = self.tracks[trac].interpdvmy(x_scale)
+            self.tracks[trac].dvm_y = self.tracks[trac].interpdvmy(x_scale)
+            self.tracks[trac].dvm_z = self.tracks[trac].interpdvmz(x_scale)
+            
+            if np.mean(np.abs(self.tracks[trac].dvm_y))>np.mean(np.abs(self.tracks[trac].dvm_z)):
+                self.tracks[trac].dvm_x = self.tracks[trac].dvm_y
+            else:
+                self.tracks[trac].dvm_x = self.tracks[trac].dvm_z
             
             #find peaks
-            self.tracks[trac].dvm_x_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.95*np.max(self.tracks[trac].dvm_x))
+            self.tracks[trac].dvm_peaks = signal.find_peaks(np.abs(self.tracks[trac].dvm_x), height = 0.01*np.max(self.tracks[trac].dvm_x))
             #find central peak
             self.tracks[trac].dvm_x_peaks_centre_ind = int(np.floor((self.tracks[trac].dvm_x_peaks[0].__len__()+1)/2))
             #location of central peak
@@ -444,6 +568,13 @@ class granite_bank_measurement(measurement):
         self.analysed : bool
             A boolean to identify if the measurement has been 'fully' analysed
         """
+        #Characteristics of B Field
+        self.calculate_number_of_periods()
+        self.calculate_period_length()
+        self.calculate_B0()
+        self.calculate_Beff()
+        self.calculate_K0()
+        self.calculate_Keff()
         
         #switch to calculate first integral
         if calc_F == True:
@@ -460,13 +591,74 @@ class granite_bank_measurement(measurement):
         if calc_Phi == True:
             #TODO self.calculate_phase_error()
             #self.calculate_phase_error()
-#            self.calculate_phase_error_array()
+            self.calculate_phase_error_array()
             print('pause here end of phase calculation')
         
         if np.all([calc_F, calc_S, calc_T, calc_Phi] ) == True:
             self.analysed = True
         
         return self.analysed
+    
+    def calculate_number_of_periods(self):
+        self.num_periods_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    dvm_x = self.DVM_array[:,ty,tz,dir]
+                     #find peaks
+                    dvm_peaks = signal.find_peaks(np.abs(dvm_x), height = 0.01*np.max(dvm_x))
+                    
+                    #find central peak
+                    dvm_peaks_centre_ind = int(np.floor((dvm_peaks[0].__len__()+1)/2))
+                    #location of central peak
+                    x_mid = self.x_scale[dvm_peaks[0][dvm_peaks_centre_ind]]
+                    x_mid_round = np.round(x_mid,2)
+                    #find number of periods
+                    self.num_periods_array[ty,tz,dir] = dvm_peaks[0].__len__()/2
+    
+    def calculate_period_length(self):
+        self.period_len_calc_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        self.period_len_round_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    B_x = self.B_array[:,ty,tz,dir]
+                     #find peaks
+                    B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
+                    
+                    period_power = np.argmax(np.abs(np.fft.fft(self.B_array[B_peaks[0][0]:B_peaks[0][-1],ty,tz,dir])))
+                    period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(self.B_array[B_peaks[0][0]:B_peaks[0][-1],ty,tz,dir].__len__())[period_power])
+                    
+                    self.period_len_calc_array[ty,tz,dir] = period_len_calc
+                    self.period_len_round_array[ty,tz,dir] = np.round(period_len_calc,1)
+    
+    def calculate_B0(self):
+        self.B0_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    B_x = self.B_array[:,ty,tz,dir]
+                     #find peaks
+                    B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
+                    
+                    self.B0_array[ty,tz,dir] = np.mean(B_peaks[1]['peak_heights'][4:-4])
+                    
+    def calculate_Beff(self):
+        self.Beff_array = np.zeros((self.DVM_array.shape[1],self.DVM_array.shape[2],2))
+        
+        for ty in range(self.DVM_array.shape[1]):
+            for tz in range(self.DVM_array.shape[2]):
+                for dir in range(2):
+                    pass
+                
+    def calculate_K0(self):
+        self.K0_array = 0.0934 *np.multiply(self.period_len_calc_array,self.B0_array)
+    
+    def calculate_Keff(self):
+        self.Keff_array = 0.0934 *np.multiply(self.period_len_calc_array,self.Beff_array)
     
     def calculate_I1(self):
         """An instance method to calculate the first integral from I1 array.
@@ -481,9 +673,9 @@ class granite_bank_measurement(measurement):
         print('I am calculating I1')
         #self.I1 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.B_array[:,:,:,:], axis = 0)
         
-        self.I1_trap = integ.cumulative_trapezoid(self.B_array[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I1_trap = integ.cumulative_trapezoid(self.B_array[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
         
-        self.I1_trap_bg = integ.cumulative_trapezoid(self.B_array_bg_subtracted[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I1_trap_bg = integ.cumulative_trapezoid(self.B_array_bg_subtracted[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
         return self.I1_trap
     
     def calculate_smoothed_I1(self):
@@ -503,8 +695,9 @@ class granite_bank_measurement(measurement):
         self.I1_smooth = np.zeros(self.I1_trap.shape)
         for i in range (self.I1_trap.shape[1]):
             for j in range (self.I1_trap.shape[2]):
+                for dir in range(self.I1_trap.shape[3]):
                 #print('i: {}, j: {}'.format(i,j))
-                self.I1_smooth[:,i,j,:] = nd.uniform_filter1d(self.I1_trap[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
+                    self.I1_smooth[:,i,j,dir] = nd.uniform_filter1d(self.I1_trap[:,i,j,dir], size = abs(int(self.period_len_calc_array[i][j][dir]/(self.x_scale[1]-self.x_scale[0]))), axis = 0)
                 
         
         #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
@@ -524,8 +717,8 @@ class granite_bank_measurement(measurement):
         """
         print('I am calculating I2')
 #        self.I2 = (self.main_x_range[2]-self.main_x_range[1])*np.cumsum(self.I1[:,:,:,:], axis = 0)
-        self.I2_trap = integ.cumulative_trapezoid(self.I1_trap[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
-        self.I2_trap_bg = integ.cumulative_trapezoid(self.I1_trap_bg[:,:,:,:], self.main_x_range, axis = 0, initial = 0.0)
+        self.I2_trap = integ.cumulative_trapezoid(self.I1_trap[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
+        self.I2_trap_bg = integ.cumulative_trapezoid(self.I1_trap_bg[:,:,:,:], self.x_scale, axis = 0, initial = 0.0)
         
         return self.I2_trap
     
@@ -573,8 +766,9 @@ class granite_bank_measurement(measurement):
         self.smoothed_trajectory = np.zeros(self.trajectory.shape)
         for i in range (self.trajectory.shape[1]):
             for j in range (self.trajectory.shape[2]):
+                for dir in range (self.trajectory.shape[3]):
                 #print('i: {}, j: {}'.format(i,j))
-                self.smoothed_trajectory[:,i,j,:] = nd.uniform_filter1d(self.trajectory[:,i,j,:], size = abs(int(self.period_len_calc_array[i]/(self.main_x_range[1]-self.main_x_range[0]))), axis = 0)
+                    self.smoothed_trajectory[:,i,j,dir] = nd.uniform_filter1d(self.trajectory[:,i,j,dir], size = abs(int(self.period_len_calc_array[i][j][dir]/(self.x_scale[1]-self.x_scale[0]))), axis = 0)
                 
         
         #e.g. a = nd.uniform_filter1d(self.trajectory[:,0,16,1], size = int(self.period_len_calc_array[16]/(self.main_x_range[1]-self.main_x_range[0])), axis = 0)
@@ -651,27 +845,208 @@ class granite_bank_measurement(measurement):
         beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
         
         #This is deflection in radians in our given machine, BESSY. All trajecotries OK
-        defl = self.I1_trap*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
+        defl = self.I1_trap_bg*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
         #transverse velocity beta_t. All trajectories OK.
         beta_t = beta * np.sqrt(defl[:,:,:,0]**2 + defl[:,:,:,1]**2)
         
         self.phase_error_array_rms = np.zeros(beta_t.shape[1:])
-        self.loc_K = np.zeros(beta_t.shape[1:])
-        phijconsts = np.zeros(beta_t.shape[1:])
-        local_phase_error_rad_array = np.zeros(beta_t.shape[1:])
-        self.local_phase_error_deg_array = np.zeros(beta_t.shape[1:])
-        self.phase_error_array = {}
-        self.phase_error_array_j = np.zeros(((self.B_array_bg_subtracted_peaks[0][0]-self.B_array_bg_subtracted_peaks[0][0][0])[0:-1].__len__(),
-                                            beta_t.shape[1],
-                                            beta_t.shape[2]))
+        self.loc_K = np.zeros(beta_t.shape[1:]+(2,))
+        phijconsts = np.zeros(beta_t.shape[1:]+(2,))
+        local_phase_error_rad_array = np.zeros(beta_t.shape[1:]+(2,))
+        self.local_phase_error_deg_array = np.zeros(beta_t.shape[1:]+(2,))
+        self.phase_error_array = np.zeros(self.B_array_bg_subtracted.shape)
+        self.phase_error_array_j = np.zeros(self.B_array_bg_subtracted_peaks_idx.shape)
+        
+        
+        #how to store arrays of unknown length with each other. 
+        a = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        b = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        c = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        d = np.zeros((self.phase_error_array_j.shape[1],self.phase_error_array_j.shape[2],2))
+        
+        
+        all_the_as = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        all_the_bs = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        all_the_cs = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        all_the_ds = [[[] for j in range(self.phase_error_array_j.shape[2])]for i in range(self.phase_error_array_j.shape[1])]
+        
+        #reduce X range from first to last pole and integrate the path.
+        for i in range(self.phase_error_array_j.shape[1]):
+            for j in range(self.phase_error_array_j.shape[2]):
+                for dir in range(self.phase_error_array_j.shape[3]):
+                    #limited to actual peaks of that track
+                    lim_x = self.B_array_bg_subtracted_peaks_idx[:,i,j,dir]!=0
+                    X = self.x_scale[self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][0]:self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][-1]+1]
+                #integrate the integrand gamma^2*beta_T^2 over reduced range
+                    Y = integ.cumulative_trapezoid(gamma**2*beta_t[self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][0]:self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][-1]+1,i,j]**2,
+                                                   X,
+                                                   initial = 0)
+                
+                #fit the resulting integrand
+                    fit = np.polyfit(X, Y, 1)
+                #create the fit function
+                    linear_baseline = np.poly1d(fit) # create the linear baseline function
+                
+                #this subtracts the integrated K^2/2
+                    new_Y = Y-linear_baseline(X)
+                #plt.plot(X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]],new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]])
+                
+                #this again gives the positions of the poles. perhaps unnecessary
+                #j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+                
+                #phase error all the way through the device / but I might not care to keep it...
+                    self.phase_error_array[:len(new_Y),i,j,dir] = new_Y
+                
+                #phase error at each pole. plots what I would normally expect
+                    new_Y_idxs = self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir]-self.B_array_bg_subtracted_peaks_idx[lim_x,i,j,dir][0]
+                    self.phase_error_array_j[:len(new_Y_idxs),i,j,dir] = new_Y[new_Y_idxs]
+                
+                #determine local K from slope
+                    self.loc_K[i,j,dir] = np.sqrt(2*linear_baseline[1])
+                
+                #these are the constants from the front of the equation
+                    phijconsts[i,j,dir] = (2*np.pi/self.period_len_calc_array[i,j,dir])/(1 + self.loc_K[i,j,dir]**2/2)
+                
+                #take the mean of the collection
+                    local_phase_error_rad_array[i,j,dir] = np.mean(phijconsts[i,j,dir]*np.abs(self.phase_error_array_j[lim_x,i,j,dir]))
+                
+                #multiply up to degrees
+                    self.local_phase_error_deg_array[i,j,dir] = local_phase_error_rad_array[i,j,dir]*180/np.pi
+                    
+                #check new func
+                a[i,j],all_the_as[i][j] = self.phase_error_of_bfield_track(input_b_field = self.B_array[:,i,j])
+                b[i,j],all_the_bs[i][j] = self.phase_error_of_bfield_track(input_b_field = self.B_array_bg_subtracted[:,i,j])
+                #print('Phase Error is: {}, Length of Phase Plot is: {}'.format(a, b.__len__()))
+                c[i,j],all_the_cs[i][j] = self.calculate_straightened_phase_error_array(self.I2_trap[:,i,j])
+                d[i,j],all_the_ds[i][j] = self.calculate_straightened_phase_error_array(self.I2_trap_bg[:,i,j])
+                #print('Phase Error is: {}, Length of Phase Plot is: {}'.format(c, d.__len__()))
+                
+        
+        self.phase_error_per_track_b_field = a
+        self.phase_error_per_track_b_field_per_pole = all_the_as
+        self.phase_error_per_track_b_field_bg_subtracted = b
+        self.phase_error_per_track_b_field_bg_subtracted_per_pole =  all_the_bs
+        self.phase_error_per_track_b_field_straightened =c 
+        self.phase_error_per_track_b_field_straightened_per_pole = all_the_cs
+        self.phase_error_per_track_b_field_bg_subtracted_straightened = d
+        self.phase_error_per_track_b_field_bg_subtracted_straightened_per_pole = all_the_ds
+        
+        print('local phase error is {}'.format(self.local_phase_error_deg_array[0,i]))
+        print(all_the_bs)
+        
+        print('wait here')
+        
+        return self.local_phase_error_deg_array
+    
+    def calculate_straightened_phase_error_array(self,input_I2):
+        print('I am calculating phase error from straightened 2nd integral')
+        #phi_j = ((2pi/lambda_u)/(1+K^2/2))int[0,z_j](gamma^2*beta_T^2(z)-K^2/2)dz
+        #this clearly needs improving, because must be independent of machine!
+        #energy of BESSY - probably doesn't want to be in this part
+        Ebessy = 1.7e9
+        #the gamma of BESSY
+        gamma = Ebessy/511000
+        
+        #Average velocity of electron
+        beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
+        
+        #do the straightening here!
+        i2d2 = np.zeros(input_I2.shape)
+        I2_spl0 = interp.splrep(self.x_scale,input_I2[:,0])
+        I2_spl1 = interp.splrep(self.x_scale,input_I2[:,1])
+        i2d2[:,0] = interp.splev(self.x_scale, I2_spl0, der = 2)
+        i2d2[:,1] = interp.splev(self.x_scale, I2_spl1, der = 2)
+        #back to field
+        #determine peaks
+        
+        #subtract straight line from I2
+        #then back to field, and pass in to rest of function
+        
+        
+        #find peak locations of input_bfield
+        input_b_field_peaks_idx = np.zeros(input_I2.shape, dtype = int)
+        input_b_field_peaks_val = np.zeros(input_I2.shape)
+        
+        longest_B_peaks = 0
+        
+        for direction in range(input_I2.shape[1]):
+            tst =signal.find_peaks(np.abs(i2d2[:,direction]), height = 0.05*np.max(i2d2[:,direction]))
+            input_b_field_peaks_idx[:tst[0].__len__(),direction] =tst[0] 
+            input_b_field_peaks_val[:tst[0].__len__(),direction] =tst[1]['peak_heights']
+            if tst[0].__len__()>longest_B_peaks:
+                longest_B_peaks = tst[0].__len__()
+        
+        input_b_field_peaks_idx = input_b_field_peaks_idx[:longest_B_peaks,:]
+        
+        #subtract straight line from I2
+        fitted_I2 = copy.deepcopy(input_I2)
+        for direction in range(input_I2.shape[1]):
+            linefit  = np.polyfit(self.x_scale[input_b_field_peaks_idx[input_b_field_peaks_idx[:,direction]!=0,direction][0]:
+                                                                 input_b_field_peaks_idx[input_b_field_peaks_idx[:,direction]!=0,direction][-1]],
+                                                                            input_I2[input_b_field_peaks_idx[input_b_field_peaks_idx[:,direction]!=0,direction][0]:
+                                                                 input_b_field_peaks_idx[input_b_field_peaks_idx[:,direction]!=0,direction][-1],direction],1)
+            baseline = np.poly1d(linefit)
+            fitted_I2[:,direction] = input_I2[:,direction]-baseline(self.x_scale)
+        
+        #then back to field, and pass in to rest of function
+        fi2d2 = np.zeros(input_I2.shape)
+        fI2_spl0 = interp.splrep(self.x_scale,fitted_I2[:,0])
+        fI2_spl1 = interp.splrep(self.x_scale,fitted_I2[:,1])
+        fi2d2[:,0] = interp.splev(self.x_scale, fI2_spl0, der = 2)
+        fi2d2[:,1] = interp.splev(self.x_scale, fI2_spl1, der = 2)
+        
+        input_b_field = fi2d2
+        
+        #find period length of track
+        input_period_len_calc_array = np.zeros(2)
+        input_period_len_round_array = np.zeros(2)
+        for direction in range(2):
+            B_x = input_b_field[:,direction]
+            #find peaks
+            B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
+            
+            period_power = np.argmax(np.abs(np.fft.fft(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction])))
+            period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power])
+            
+            input_period_len_calc_array[direction] = period_len_calc
+            input_period_len_round_array[direction] = np.round(period_len_calc,1)
+        
+        '''for direction in range(input_b_field.shape[1]):
+            tst =signal.find_peaks(np.abs(input_b_field[:,direction]), height = 0.05*np.max(input_b_field[:,direction]))
+            input_b_field_peaks_idx[:tst[0].__len__(),direction] =tst[0] 
+            input_b_field_peaks_val[:tst[0].__len__(),direction] =tst[1]['peak_heights']
+            if tst[0].__len__()>longest_B_peaks:
+                longest_B_peaks = tst[0].__len__()'''
+        
+        #calculate I1
+        #input_I1 = integ.cumulative_trapezoid(input_b_field[:,:], self.x_scale, axis = 0, initial = 0.0)
+        input_I1 = np.zeros(input_b_field.shape)
+        input_I1[:,0] = interp.splev(self.x_scale, fI2_spl0, der = 1)
+        input_I1[:,1] = interp.splev(self.x_scale, fI2_spl1, der = 1)
+        
+        #This is deflection in radians in our given machine, BESSY. All trajecotries OK
+        defl = input_I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
+        #transverse velocity beta_t. All trajectories OK.
+        beta_t = beta * np.sqrt(defl[:,0]**2 + defl[:,1]**2)
+        
+        input_phase_error_array_rms = np.zeros(beta_t.shape[1:])
+        input_loc_K = np.zeros(beta_t.shape[1:]+(2,))
+        phijconsts = np.zeros(beta_t.shape[1:]+(2,))
+        input_phase_error_rad_array = np.zeros(beta_t.shape[1:]+(2,))
+        input_phase_error_deg_array = np.zeros(beta_t.shape[1:]+(2,))
+        input_phase_error_array = np.zeros(input_b_field.shape)
+        input_phase_error_array_j = np.zeros(input_b_field_peaks_idx.shape)
+        
         
         
         #reduce X range from first to last pole and integrate the path.
-        for i in range(self.phase_error_array_j.shape[2]):
-            X = self.main_x_range[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1]
+        for direction in range(input_phase_error_array_j.shape[1]):
+            #limited to actual peaks of that track
+            lim_x = input_b_field_peaks_idx[:,direction]!=0
+            X = self.x_scale[input_b_field_peaks_idx[lim_x,direction][0]:input_b_field_peaks_idx[lim_x,direction][-1]+1]
         #integrate the integrand gamma^2*beta_T^2 over reduced range
-            Y = integ.cumulative_trapezoid(gamma**2*beta_t[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1,0,i]**2,
-                                           self.main_x_range[self.B_array_bg_subtracted_peaks[i][0][0]:self.B_array_bg_subtracted_peaks[i][0][-1]+1],
+            Y = integ.cumulative_trapezoid(gamma**2*beta_t[input_b_field_peaks_idx[lim_x,direction][0]:input_b_field_peaks_idx[lim_x,direction][-1]+1]**2,
+                                           X,
                                            initial = 0)
         
         #fit the resulting integrand
@@ -686,30 +1061,128 @@ class granite_bank_measurement(measurement):
         #this again gives the positions of the poles. perhaps unnecessary
         #j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
         
-        #phase error all the way through the device
-            self.phase_error_array[i] = new_Y
+        #phase error all the way through the device / but I might not care to keep it...
+            input_phase_error_array[:len(new_Y),direction] = new_Y
         
         #phase error at each pole. plots what I would normally expect
-            self.phase_error_array_j[:,0,i] = new_Y[(self.B_array_bg_subtracted_peaks[i][0]-self.B_array_bg_subtracted_peaks[i][0][0])[0:-1]]
+            new_Y_idxs = input_b_field_peaks_idx[lim_x,direction]-input_b_field_peaks_idx[lim_x,direction][0]
+            input_phase_error_array_j[:len(new_Y_idxs),direction] = new_Y[new_Y_idxs]
         
         #determine local K from slope
-            self.loc_K[0,i] = np.sqrt(2*linear_baseline[1])
+            input_loc_K[direction] = np.sqrt(2*linear_baseline[1])
         
         #these are the constants from the front of the equation
-            phijconsts[0,i] = (2*np.pi/self.period_len_calc_array[i])/(1 + self.loc_K[0,i]**2/2)
+            phijconsts[direction] = (2*np.pi/input_period_len_calc_array[direction])/(1 + input_loc_K[direction]**2/2)
         
         #take the mean of the collection
-            local_phase_error_rad_array[0,i] = np.mean(phijconsts[0,i]*np.abs(self.phase_error_array_j[:,0,i]))
+            input_phase_error_rad_array[direction] = np.mean(phijconsts[direction]*np.abs(input_phase_error_array_j[lim_x,direction]))
         
         #multiply up to degrees
-            self.local_phase_error_deg_array[0,i] = local_phase_error_rad_array[0,i]*180/np.pi
-        
-        print('local phase error is {}'.format(self.local_phase_error_deg_array[0,i]))
-        
-        print('wait here')
-        
-        return self.local_phase_error_deg_array
+            input_phase_error_deg_array[direction] = input_phase_error_rad_array[direction]*180/np.pi
+            
+        return input_phase_error_deg_array,180*phijconsts[direction]*(input_phase_error_array_j[lim_x,direction])/np.pi
 
+    def phase_error_of_bfield_track(self, input_b_field = None):
+        print('I am calculating phase error from modified b_field')
+        #phi_j = ((2pi/lambda_u)/(1+K^2/2))int[0,z_j](gamma^2*beta_T^2(z)-K^2/2)dz
+        #this clearly needs improving, because must be independent of machine!
+        #energy of BESSY - probably doesn't want to be in this part
+        Ebessy = 1.7e9
+        #the gamma of BESSY
+        gamma = Ebessy/511000
+        
+        #Average velocity of electron
+        beta = np.sqrt(1-(1/(1+cnst.e*Ebessy/(cnst.m_e*cnst.c**2))**2))
+        
+        #find peak locations of input_bfield
+        input_b_field_peaks_idx = np.zeros(input_b_field.shape, dtype = int)
+        input_b_field_peaks_val = np.zeros(input_b_field.shape)
+        longest_B_peaks = 0
+        
+        #find period length of track
+        input_period_len_calc_array = np.zeros(2)
+        input_period_len_round_array = np.zeros(2)
+        for direction in range(2):
+            B_x = input_b_field[:,direction]
+            #find peaks
+            B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
+            
+            period_power = np.argmax(np.abs(np.fft.fft(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction])))
+            period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power])
+            
+            input_period_len_calc_array[direction] = period_len_calc
+            input_period_len_round_array[direction] = np.round(period_len_calc,1)
+        
+        for direction in range(input_b_field.shape[1]):
+            tst =signal.find_peaks(np.abs(input_b_field[:,direction]), height = 0.05*np.max(input_b_field[:,direction]))
+            input_b_field_peaks_idx[:tst[0].__len__(),direction] =tst[0] 
+            input_b_field_peaks_val[:tst[0].__len__(),direction] =tst[1]['peak_heights']
+            if tst[0].__len__()>longest_B_peaks:
+                longest_B_peaks = tst[0].__len__()
+        
+        input_b_field_peaks_idx = input_b_field_peaks_idx[:longest_B_peaks,:]
+        
+        #calculate I1
+        input_I1 = integ.cumulative_trapezoid(input_b_field[:,:], self.x_scale, axis = 0, initial = 0.0)
+        
+        
+        #This is deflection in radians in our given machine, BESSY. All trajecotries OK
+        defl = input_I1*1e-3*cnst.e/(beta*gamma*cnst.m_e*cnst.c)
+        #transverse velocity beta_t. All trajectories OK.
+        beta_t = beta * np.sqrt(defl[:,0]**2 + defl[:,1]**2)
+        
+        input_phase_error_array_rms = np.zeros(beta_t.shape[1:])
+        input_loc_K = np.zeros(beta_t.shape[1:]+(2,))
+        phijconsts = np.zeros(beta_t.shape[1:]+(2,))
+        input_phase_error_rad_array = np.zeros(beta_t.shape[1:]+(2,))
+        input_phase_error_deg_array = np.zeros(beta_t.shape[1:]+(2,))
+        input_phase_error_array = np.zeros(input_b_field.shape)
+        input_phase_error_array_j = np.zeros(input_b_field_peaks_idx.shape)
+        
+        
+        
+        #reduce X range from first to last pole and integrate the path.
+        for direction in range(input_phase_error_array_j.shape[1]):
+            #limited to actual peaks of that track
+            lim_x = input_b_field_peaks_idx[:,direction]!=0
+            X = self.x_scale[input_b_field_peaks_idx[lim_x,direction][0]:input_b_field_peaks_idx[lim_x,direction][-1]+1]
+        #integrate the integrand gamma^2*beta_T^2 over reduced range
+            Y = integ.cumulative_trapezoid(gamma**2*beta_t[input_b_field_peaks_idx[lim_x,direction][0]:input_b_field_peaks_idx[lim_x,direction][-1]+1]**2,
+                                           X,
+                                           initial = 0)
+        
+        #fit the resulting integrand
+            fit = np.polyfit(X, Y, 1)
+        #create the fit function
+            linear_baseline = np.poly1d(fit) # create the linear baseline function
+        
+        #this subtracts the integrated K^2/2
+            new_Y = Y-linear_baseline(X)
+        #plt.plot(X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]],new_Y[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]])
+        
+        #this again gives the positions of the poles. perhaps unnecessary
+        #j_poles = X[(self.B_peaks_x[0]-self.B_peaks_x[0][0])[0:-1]]
+        
+        #phase error all the way through the device / but I might not care to keep it...
+            input_phase_error_array[:len(new_Y),direction] = new_Y
+        
+        #phase error at each pole. plots what I would normally expect
+            new_Y_idxs = input_b_field_peaks_idx[lim_x,direction]-input_b_field_peaks_idx[lim_x,direction][0]
+            input_phase_error_array_j[:len(new_Y_idxs),direction] = new_Y[new_Y_idxs]
+        
+        #determine local K from slope
+            input_loc_K[direction] = np.sqrt(2*linear_baseline[1])
+        
+        #these are the constants from the front of the equation
+            phijconsts[direction] = (2*np.pi/input_period_len_calc_array[direction])/(1 + input_loc_K[direction]**2/2)
+        
+        #take the mean of the collection
+            input_phase_error_rad_array[direction] = np.mean(phijconsts[direction]*np.abs(input_phase_error_array_j[lim_x,direction]))
+        
+        #multiply up to degrees
+            input_phase_error_deg_array[direction] = input_phase_error_rad_array[direction]*180/np.pi
+            
+        return input_phase_error_deg_array, 180*phijconsts[direction]*(input_phase_error_array_j[lim_x,direction])/np.pi
     
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):
@@ -795,14 +1268,97 @@ class granite_bank_measurement(measurement):
                 print ('{} saved'.format(item))
                 
             elif item == 'phase_error_array':
-                for key in self.__getattribute__(item).keys(): 
-                    grp.require_dataset('{}/{}'.format(item,key), shape = self.__getattribute__(item)[key].shape, dtype = self.__getattribute__(item)[key].dtype)
-                    
-                    grp[item][str(key)][...] = self.__getattribute__(item)[key]
-                    grp[item][str(key)].attrs['unit'] = 'deg'
-                                      
-                    
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                
+                #grp[item].attrs['unit'] = 'V'
+                
                 print ('{} saved'.format(item))
+                
+            elif item == 'phase_error_per_track_b_field':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+            
+            elif item == 'phase_error_per_track_b_field_bg_subtracted':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_straightened':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_bg_subtracted_straightened':
+                #requires dataset
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+            
+            elif item == 'phase_error_per_track_b_field_bg_subtracted_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_straightened_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+                
+            elif item == 'phase_error_per_track_b_field_bg_subtracted_straightened_per_pole':
+                #requires dataset
+                for i in range(len(self.__getattribute__(item))):
+                    for j in range(len(self.__getattribute__(item)[i])):
+                        grp.require_dataset('{}[{}][{}]'.format(item, i, j),  shape = self.__getattribute__(item)[i][j].shape, dtype = self.__getattribute__(item)[i][j].dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                        grp['{}[{}][{}]'.format(item,i,j)][...] = self.__getattribute__(item)[i][j]
+                        grp['{}[{}][{}]'.format(item,i,j)].attrs['unit'] = 'deg'
+                
+            elif item == 'x_scale':
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                
+                grp[item].attrs['unit'] = 'mm'
+                
+                print ('{} saved'.format(item))
+            
             elif item == 'phase_error_array_j':
                  
                 grp.require_dataset('{}'.format(item), shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
@@ -812,6 +1368,17 @@ class granite_bank_measurement(measurement):
                                       
                     
                 print ('{} saved'.format(item))
+                
+            elif item == 'DVM_array':
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                
+                grp[item].attrs['unit'] = 'V'
+                
+                print ('{} saved'.format(item))
+                
             else:
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)
@@ -833,8 +1400,8 @@ class granite_bank_measurement(measurement):
             #append dimensions and attributes
             
             #create x_axis dataset
-            grp.require_dataset('x_axis', shape = self.main_x_range.shape, dtype = self.main_x_range.dtype)
-            grp['x_axis'][...] = self.main_x_range
+            grp.require_dataset('x_axis', shape = self.x_scale.shape, dtype = self.x_scale.dtype)
+            grp['x_axis'][...] = self.x_scale
             grp['x_axis'].make_scale('Longitudinal Axis')
             grp['x_axis'].attrs['unit'] = 'mm'
             
@@ -895,6 +1462,179 @@ class granite_bank_measurement(measurement):
         print('The central value here is {}'.format(central_value))
         return line_fit_fn
             
+class moved_wire_measurement(measurement):
+    """
+    A class to describe measurements from the HZB Moved Wire System.
+    Actually also loading actual data.... 
+    Functionality should be isolated
+    """
+    
+    def __init__(self, measurement_name, **kwargs):
+        """Constructor for moved_wire_measurement.
+        
+        Date 25.04.24:
+        
+        The Moved Wire System in the Schwerlasthalle is the primary measurement system
+        for first field integral measurment of large magnet systems at Helmholtz-Zentrum
+        Berlin. It takes an integrated measurement of the X axis along a Z axis path. 
+        The measurement plane can be positioned int he vertical (Y) direction.
+        All positions relative.
+        
+        The Granite Messbank in the Schwerlasthalle is the primary measurement
+        system for 3D field mapping at Helmholtz-Zentrum Berlin. It takes a measurement
+        along the longitudinal axis X, and that axis can be positioned in the 
+        vertical (Y) and transverse (Z) directions. These are relative positions.
+        
+        Parameters
+        ----------
+        measurement : `measurement`
+            This class is subclassed from `measurement`
+            
+        Attributes
+        ----------
+        measurement_name : str
+            The name of the measurement. Often a number as a string.
+            
+        Other Parameters
+        ----------------
+        measurement_timestamp : datetime object
+            The timestamp of the measurement.
+        """
+        super(moved_wire_measurement,self).__init__(measurement_name)
+        #self.name = measurement_name
+        
+        for key, value in kwargs.items():
+            self.__setattr__(key, value)
+    
+    def __repr__(self):
+        return 'MovedWireMeasurement()'
+    
+    @classmethod
+    def convert_to_moved_wire_measurement(cls,obj):
+        obj.__class__ = moved_wire_measurement
+        
+    def read_logfile_metadata(self):
+        f = open(self.logfile, 'r')
+        loglines = f.readlines()
+        print ('log data read into loglines')
+        
+        for line in range(len(loglines)):
+            if loglines[line][0:4] == 'Date':
+                self.measurement_timestamp = dt.datetime.strptime(loglines[line].split()[1] +
+                                                                  ' ' +
+                                                                  loglines[line].split()[2],'%d-%b-%y %H:%M:%S')
+            
+#            if loglines[line].split()[0] == 'Operator:':
+#                self.operator = loglines[line].split()[1]
+            if loglines[line][0:10] == 'First-Run:':
+                self.mw_track_name = int(loglines[line].split()[1])
+
+            
+            if loglines[line][0:15] == 'DAQ   Parameter':
+                self.daq_scale_factor = float(loglines[line+1].split()[-1])
+                self.daq_agilent_range = float(loglines[line+3].split()[-1])
+                self.daq_agilent_aperture = float(loglines[line+4].split()[-1])
+                self.daq_amplifier_scale_factor = float(loglines[line+5].split()[-1])
+                self.daq_trigger_delay = float(loglines[line+6].split()[-1])
+                self.daq_wait_digitax_pos = float(loglines[line+7].split()[-1])
+                self.daq_proc_time = float(loglines[line+8].split()[-1])
+                
+            
+            if loglines[line][0:18] == 'applied stepsize :':
+                self.z_step_size = float(loglines[line].split()[-1])
+                
+            if loglines[line][0:22] == 'Z-Positioning Paramter':
+                self.z_scan_velocity = float(loglines[line+1].split()[-1])
+                self.z_return_velocity= float(loglines[line+2].split()[-1])
+                self.z_slow_velocity = float(loglines[line+3].split()[-1])
+                self.z_start = float(loglines[line+5].split()[-1])
+                self.z_end = float(loglines[line+6].split()[-1])
+                self.z_unit = 'mm'
+            
+            if loglines[line][0:22] == 'Y-Positioning Paramter':
+                self.y_velocity = float(loglines[line+1].split()[-1])
+                self.y_start = float(loglines[line+2].split()[-1])
+                self.y_end = float(loglines[line+3].split()[-1])
+                self.y_step_size = float(loglines[line+4].split()[-1])
+                self.y_unit = 'mm'
+                
+        
+        #TODO actually algorithmically derive Track Numbers
+        self.tracks = {}
+        self.tracks[self.mw_track_name] = trk.track()
+        
+        for trac in self.tracks:
+            
+            file_path_dat = self.logfile.parent.joinpath('./MW-FIELD{}.DAT'.format(trac))
+            self.tracks[trac].load_mw_track(file_path_dat)
+      
+    def process_measurement(self):
+        print('processing Moved Wire Measurement')
+        
+        #denoise the data
+        meas = list(self.tracks.keys())[0]
+        iy_map = self.tracks[meas].mw_data[:,3]<0.01
+        iz_map = self.tracks[meas].mw_data[:,4]<0.01
+        
+        #interpolate remaining data on 0.5mm interval
+        interpIy = interp.CubicSpline(self.tracks[meas].mw_data[iy_map,0],self.tracks[meas].mw_data[iy_map,1])
+        interpIz = interp.CubicSpline(self.tracks[meas].mw_data[iz_map,0],self.tracks[meas].mw_data[iz_map,2])
+        
+        self.z_scale = np.arange(self.tracks[meas].mw_data[:,0].min(),self.tracks[meas].mw_data[:,0].max()+0.1,0.5)
+            
+        self.mw_data_processed = np.vstack([interpIy(self.z_scale), interpIz(self.z_scale)]).T
+        
+        #IY, IZ, Noise IY, Noise IZ
+        #interpolate remaining data on 0.5mm interval
+        
+        self.processed = True
+        
+    def save_measurement_group(self,grp):
+        for item in self.__dict__:
+            if item == 'measurement_system':
+                pass
+            elif item == 'tracks':
+                pass
+            elif item == 'logfile':
+                pass
+            elif item == 'measurement_timestamp':
+                pass
+            elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
+                pass
+            
+            elif item == 'z_scale':
+                print('{} is special and saved'.format(item))
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                grp[item][...] = self.__getattribute__(item)
+                grp[item].make_scale('Transverse Axis')
+                grp[item].attrs['unit'] = 'mm'
+                
+            elif item == 'mw_data_processed':
+                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                grp[item][...] = self.mw_data_processed
+                grp[item].attrs['unit'] = 'Tmm'
+                
+            else:
+                print(item)
+                grp.attrs[item] = self.__getattribute__(item)
+        
+        
+        for track in self.tracks:
+            #are you sure you need to create another group here?
+            trk = grp.require_group('{}'.format(track))
+            trk.require_dataset('{}'.format(track), shape = self.tracks[track].mw_data.shape, dtype = self.tracks[track].mw_data.dtype)
+            
+            trk[str(track)][...] = self.tracks[track].mw_data
+            trk[str(track)].attrs['unit'] = 'V'
+            #TODO don't forget to build up metadata as attributes
+            
+            print (trk)
+        
+        #super().save_measurement_group(grp)
+    
+
 ##area for custom exception
 class IncompleteMetadataError(Exception):
     def __init__(self,message):
