@@ -81,6 +81,8 @@ def UE51_tmp(analysis_folder, output_file, component, ident, state, step, run_nu
     #create the measurement system and add the granite messbank
     granite_messbank = ms.Measurement_System("Granite_Messbank")
     granite_messbank.load_hall_calibration_files(x_file, y_file, z_file)
+    #this needs somehow to be an input
+    granite_messbank.add_background_measurement(np.array([[-2.9e-5,1.2e-5],[-1.7e-5,1e-6]]))
     
     #read the logfile and add metadata to the measurement
     b.read_logfile_metadata()
@@ -92,17 +94,19 @@ def UE51_tmp(analysis_folder, output_file, component, ident, state, step, run_nu
     b.add_step('Step_{}'.format(meas_number))
     b.add_measurement_system(granite_messbank)
     
+    
+    
     #process the measurement
     b.process_measurement()
     #analyse the measurement
     b.analyse_measurement()
     #add the measurement to the campaign
-    a.add_measurement(b)
+    a.add_measurement_v2(b)
     
     
     a.add_measurement_system(granite_messbank)
     
-    a.save_campaign_file()
+    a.save_campaign_file_v2()
     a.save_measurement_system_to_file()
     print(b.logfile)
     

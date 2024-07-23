@@ -79,6 +79,17 @@ class Campaign(object):
                                                                 state,
                                                                 meas))
                                 self.data_store[component][ident][step][state][meas].save_measurement_group(grp)
+                                
+    def save_campaign_file_v2(self):
+        with h5.File(self.filepath, 'a') as f:
+            for component in self.data_store.keys():
+                for ident in self.data_store[component].keys():
+                    for meas in self.data_store[component][ident].keys():
+                        grp = f.require_group('{}/{}/{}/{}'.format(self.campaign_name,
+                                                                component,
+                                                                ident,
+                                                                meas))
+                        self.data_store[component][ident][meas].save_measurement_group(grp)
                             
     def save_measurement_system_to_file(self):
         with h5.File(self.filepath, 'a') as f:
@@ -134,7 +145,41 @@ class Campaign(object):
                             ['measurement'] = measurement
                     
 #
-
+    def add_measurement_v2 (self, measurement):
+        #measurement must contain certain attributes to allow it to be placed in campaign structure
+        #required attributes
+        #component, ident, step, state?, measurement_system, measurement_timestamp
+        #optional attributes
+        #author, comment
+        
+            
+        meas_num = 0
+        try:
+            measurement.check_metadata()
+        except Exception as e:
+            print (e.args[0])
+        
+        else:
+            print ('The measurement has all the required metadata')
+            
+            if measurement.component not in self.data_store.keys():
+                self.data_store[measurement.component] = {}
+                
+            if measurement.ident not in \
+                self.data_store[measurement.component].keys():
+                
+                self.data_store[measurement.component] \
+                                [measurement.ident] = {}
+                                
+                meas_num = len(self.data_store[measurement.component] \
+                               [measurement.ident].keys())
+                                
+            
+            self.data_store[measurement.component] \
+                            [measurement.ident] \
+                            ['measurement {}'.format(meas_num)] = measurement
+                    
+#
     
     def add_measurement_system(self, measurement_bench):
         """
