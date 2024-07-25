@@ -10,6 +10,7 @@ import undulator_analysis_hzb.track as trk
 from undulator_analysis_hzb.measurement import measurement
 import undulator_analysis_hzb.measurement_system as ms
 import numpy as np
+import copy
 
 class Campaign(object):
     
@@ -85,11 +86,23 @@ class Campaign(object):
             for component in self.data_store.keys():
                 for ident in self.data_store[component].keys():
                     for meas in self.data_store[component][ident].keys():
-                        grp = f.require_group('{}/{}/{}/{}'.format(self.campaign_name,
+                        stored_meas = copy.deepcopy(meas)
+                        
+                        while stored_meas in f[self.campaign_name][component][ident].keys():
+                            if self.data_store[component][ident][meas].name == f[self.campaign_name][component][ident][stored_meas].attrs['name']:
+                                print('Measurement {} already exists in this hdf5 file at {}. Data not overwritten'.format(self.data_store[component][ident][meas].name,f[self.campaign_name][component][ident][stored_meas]))
+                                break
+                            else:
+                                stored_meas = stored_meas[:12]+str(int(stored_meas[12:])+1)
+                        else:
+                            
+                            grp = f.require_group('{}/{}/{}/{}'.format(self.campaign_name,
                                                                 component,
                                                                 ident,
-                                                                meas))
-                        self.data_store[component][ident][meas].save_measurement_group(grp)
+                                                                stored_meas))
+                            
+                            self.data_store[component][ident][meas].save_measurement_group(grp)
+                            print('Measurement saved at {}'.format(f[self.campaign_name][component][ident][stored_meas]))
                             
     def save_measurement_system_to_file(self):
         with h5.File(self.filepath, 'a') as f:
