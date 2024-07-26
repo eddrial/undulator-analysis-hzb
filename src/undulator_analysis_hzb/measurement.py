@@ -1191,7 +1191,7 @@ class granite_bank_measurement(measurement):
         component_state_group = grp.require_group(grp.name+'/State')
         summary_results_group = grp.require_group(grp.name+'/Summary Results')
         raw_data_group = grp.require_group(grp.name+'/Raw Data')
-        processed_data_grp = grp.require_group(grp.name + '/Analysed Data')
+        analysed_data_grp = grp.require_group(grp.name + '/Analysed Data')
         bench_settings_grp = grp.require_group(grp.name + '/Measurement Bench Settings')
         
         
@@ -1228,6 +1228,28 @@ class granite_bank_measurement(measurement):
                                          'pitch_unit'
                                          ]
             
+            analysed_data_attrs_plain = ['B0_array',
+                                         'B_array',
+                                         'B_array_bg_subtracted',
+                                         'B_array_bg_subtracted_peaks_idx',
+                                         'B_array_bg_subtracted_peaks_val',
+                                         'Beff_array',
+                                         'I1_smooth',
+                                         'I1_trap',
+                                         'I1_trap_bg',
+                                         'I2_trap',
+                                         'I2_trap_bg',
+                                         'K0_array',
+                                         'Keff_array',
+                                         'loc_K',
+                                         'local_phase_error_deg_array',
+                                         'num_periods_array',
+                                         'period_len_calc_array',
+                                         'period_len_round_array',
+                                         'phase_error_array',
+                                         'phase_error_array_j',
+                                         'phase_error_array_rms'
+                                         ]
             
             if item in metadata_attrs_plain:
                 metadata_group.attrs[item] = self.__getattribute__(item)
