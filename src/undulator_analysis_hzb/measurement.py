@@ -1186,17 +1186,83 @@ class granite_bank_measurement(measurement):
     
     #Saving stuff to measurement group
     def save_measurement_group(self,grp):
+        #structure undergroups
+        metadata_group = grp.require_group(grp.name+'/Metadata')
+        component_state_group = grp.require_group(grp.name+'/State')
+        summary_results_group = grp.require_group(grp.name+'/Summary Results')
+        raw_data_group = grp.require_group(grp.name+'/Raw Data')
+        processed_data_grp = grp.require_group(grp.name + '/Analysed Data')
+        bench_settings_grp = grp.require_group(grp.name + '/Measurement Bench Settings')
+        
+        
         for item in self.__dict__:
-            if item == 'measurement_system':
-                pass
-            elif item == 'tracks':
-                pass
+            #Background Information Level
+            metadata_attrs_plain = ['name', 
+                                    'processed',
+                                    'analysed',
+                                    ]
+            
+            bench_setting_attrs_plain = ['x_start',
+                                         'x_end',
+                                         'x_step',
+                                         'x_velocity',
+                                         'x_return_velocity',
+                                         'x_unit',
+                                         'y_start',
+                                         'y_end',
+                                         'y_step',
+                                         'y_velocity',
+                                         'y_return_velocity',
+                                         'y_unit',
+                                         'z_start',
+                                         'z_end',
+                                         'z_step',
+                                         'z_velocity',
+                                         'z_return_velocity',
+                                         'z_unit',
+                                         'pitch_start',
+                                         'pitch_end',
+                                         'pitch_step',
+                                         'pitch_velocity',
+                                         'pitch_return_velocity',
+                                         'pitch_unit'
+                                         ]
+            
+            
+            if item in metadata_attrs_plain:
+                metadata_group.attrs[item] = self.__getattribute__(item)
+                
             elif item == 'logfile':
+                pass # only needed for loading and analysis of data. hdf5 IS new logfile
+            
+            elif item == 'measurement_system':
+                #TODO write hdf5 measurement system saving/referencing 
                 pass
+            
             elif item == 'measurement_timestamp':
-                pass
-            elif item == 'backgrBY_ar' or item == 'backgrBZ_ar' or item == 'B_peaks_x':
-                pass
+                ts = metadata_group.require_group(metadata_group.name + '/Timestamp')
+                ts.attrs['Year'] = self.__getattribute__(item).year
+                ts.attrs['Month'] = self.__getattribute__(item).month
+                ts.attrs['Day'] = self.__getattribute__(item).day
+                ts.attrs['Hour'] = self.__getattribute__(item).hour
+                ts.attrs['Minute'] = self.__getattribute__(item).minute
+                ts.attrs['Second'] = self.__getattribute__(item).second
+                ts.attrs['Timestamp'] = self.__getattribute__(item).strftime('%Y-%m-%d %H:%M:%S')
+            
+            #Bench Settings Level
+            
+                                        
+            elif item in bench_setting_attrs_plain:
+                bench_settings_grp.attrs[item] = self.__getattribute__(item)
+
+            
+            elif item == 'tracks':
+                for track in self.tracks:
+                #are you sure you need to create another group here?
+                    raw_data_group.require_dataset('{}'.format(track), shape = self.tracks[track].dvm_data.shape, dtype = self.tracks[track].dvm_data.dtype)
+                    
+                    raw_data_group[str(track)][...] = self.tracks[track].dvm_data
+                    raw_data_group[str(track)].attrs['unit'] = 'V'
             
             elif item == 'I1' or item == 'I1_trap' or item == 'I1_trap_bg' or item == 'I1_smooth':
                 print('{} is special and saved'.format(item))
@@ -1370,12 +1436,12 @@ class granite_bank_measurement(measurement):
                 print ('{} saved'.format(item))
                 
             elif item == 'DVM_array':
-                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                raw_data_group.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
                 #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
                 #TODO fix this overwriting issue
-                grp[item][...] = self.__getattribute__(item)
+                raw_data_group[item][...] = self.__getattribute__(item)
                 
-                grp[item].attrs['unit'] = 'V'
+                raw_data_group[item].attrs['unit'] = 'V'
                 
                 print ('{} saved'.format(item))
                 
@@ -1383,16 +1449,7 @@ class granite_bank_measurement(measurement):
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)
         
-        for track in self.tracks:
-            #are you sure you need to create another group here?
-            trk = grp.require_group('{}'.format(track))
-            trk.require_dataset('{}'.format(track), shape = self.tracks[track].dvm_data.shape, dtype = self.tracks[track].dvm_data.dtype)
-            
-            trk[str(track)][...] = self.tracks[track].dvm_data
-            trk[str(track)].attrs['unit'] = 'V'
-            #TODO don't forget to build up metadata as attributes
-            
-            print (trk)
+        
             
         print(grp)
     

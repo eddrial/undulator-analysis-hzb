@@ -85,6 +85,7 @@ class Campaign(object):
         with h5.File(self.filepath, 'a') as f:
             for component in self.data_store.keys():
                 for ident in self.data_store[component].keys():
+                    f.require_group('{}/{}/{}'.format(self.campaign_name,component,ident))
                     for meas in self.data_store[component][ident].keys():
                         stored_meas = copy.deepcopy(meas)
                         
