@@ -1194,62 +1194,64 @@ class granite_bank_measurement(measurement):
         analysed_data_grp = grp.require_group(grp.name + '/Analysed Data')
         bench_settings_grp = grp.require_group(grp.name + '/Measurement Bench Settings')
         
-        
-        for item in self.__dict__:
-            #Background Information Level
-            metadata_attrs_plain = ['name', 
+        metadata_attrs_plain = ['name', 
                                     'processed',
                                     'analysed',
                                     ]
             
-            bench_setting_attrs_plain = ['x_start',
-                                         'x_end',
-                                         'x_step',
-                                         'x_velocity',
-                                         'x_return_velocity',
-                                         'x_unit',
-                                         'y_start',
-                                         'y_end',
-                                         'y_step',
-                                         'y_velocity',
-                                         'y_return_velocity',
-                                         'y_unit',
-                                         'z_start',
-                                         'z_end',
-                                         'z_step',
-                                         'z_velocity',
-                                         'z_return_velocity',
-                                         'z_unit',
-                                         'pitch_start',
-                                         'pitch_end',
-                                         'pitch_step',
-                                         'pitch_velocity',
-                                         'pitch_return_velocity',
-                                         'pitch_unit'
-                                         ]
+        bench_setting_attrs_plain = ['x_start',
+                                     'x_end',
+                                     'x_step',
+                                     'x_velocity',
+                                     'x_return_velocity',
+                                     'x_unit',
+                                     'y_start',
+                                     'y_end',
+                                     'y_step',
+                                     'y_velocity',
+                                     'y_return_velocity',
+                                     'y_unit',
+                                     'z_start',
+                                     'z_end',
+                                     'z_step',
+                                     'z_velocity',
+                                     'z_return_velocity',
+                                     'z_unit',
+                                     'pitch_start',
+                                     'pitch_end',
+                                     'pitch_step',
+                                     'pitch_velocity',
+                                     'pitch_return_velocity',
+                                     'pitch_unit'
+                                     ]
+        
+        analysed_data_attrs_plain = ['B0_array',
+                                     'B_array',
+                                     'B_array_bg_subtracted',
+                                     'B_array_bg_subtracted_peaks_idx',
+                                     'B_array_bg_subtracted_peaks_val',
+                                     'Beff_array',
+                                     'I1_smooth',
+                                     'I1_trap',
+                                     'I1_trap_bg',
+                                     'I2_trap',
+                                     'I2_trap_bg',
+                                     'K0_array',
+                                     'Keff_array',
+                                     'loc_K',
+                                     'local_phase_error_deg_array',
+                                     'num_periods_array',
+                                     'period_len_calc_array',
+                                     'period_len_round_array',
+                                     'phase_error_array',
+                                     'phase_error_array_j',
+                                     'phase_error_array_rms'
+                                     ]
+        
+        
+        for item in self.__dict__:
+            #Background Information Level
             
-            analysed_data_attrs_plain = ['B0_array',
-                                         'B_array',
-                                         'B_array_bg_subtracted',
-                                         'B_array_bg_subtracted_peaks_idx',
-                                         'B_array_bg_subtracted_peaks_val',
-                                         'Beff_array',
-                                         'I1_smooth',
-                                         'I1_trap',
-                                         'I1_trap_bg',
-                                         'I2_trap',
-                                         'I2_trap_bg',
-                                         'K0_array',
-                                         'Keff_array',
-                                         'loc_K',
-                                         'local_phase_error_deg_array',
-                                         'num_periods_array',
-                                         'period_len_calc_array',
-                                         'period_len_round_array',
-                                         'phase_error_array',
-                                         'phase_error_array_j',
-                                         'phase_error_array_rms'
-                                         ]
             
             if item in metadata_attrs_plain:
                 metadata_group.attrs[item] = self.__getattribute__(item)

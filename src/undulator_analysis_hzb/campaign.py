@@ -90,7 +90,7 @@ class Campaign(object):
                         stored_meas = copy.deepcopy(meas)
                         
                         while stored_meas in f[self.campaign_name][component][ident].keys():
-                            if self.data_store[component][ident][meas].name == f[self.campaign_name][component][ident][stored_meas].attrs['name']:
+                            if self.data_store[component][ident][meas].name == f[self.campaign_name][component][ident][stored_meas]['Metadata'].attrs['name']:
                                 print('Measurement {} already exists in this hdf5 file at {}. Data not overwritten'.format(self.data_store[component][ident][meas].name,f[self.campaign_name][component][ident][stored_meas]))
                                 break
                             else:
@@ -108,8 +108,12 @@ class Campaign(object):
     def save_measurement_system_to_file(self):
         with h5.File(self.filepath, 'a') as f:
             for meas_sys in self.measurement_systems:
+                
                 grp = f.require_group('Measurement_Systems/{}'.format(meas_sys))
-                self.measurement_systems[meas_sys].save_measurement_system_group(grp)
+                if f['Measurement_Systems'][meas_sys].attrs['name'] == self.measurement_systems[meas_sys].name:
+                    print('Measurement system {} already saved.'.format(meas_sys))
+                else:
+                    self.measurement_systems[meas_sys].save_measurement_system_group(grp)
         
     ### Adding and Manipulation of Measurement objects to Campaign
         
