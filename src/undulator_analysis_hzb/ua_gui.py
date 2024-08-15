@@ -198,6 +198,7 @@ window = MainWindow()
 window.show()
 
 #begin the action loop
+
 app.exec()
 
 #once closed, you're outta here

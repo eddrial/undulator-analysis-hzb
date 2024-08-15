@@ -1006,8 +1006,10 @@ class granite_bank_measurement(measurement):
             B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
             
             period_power = np.argmax(np.abs(np.fft.fft(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction])))
-            period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power])
-            
+            if np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power] != 0: 
+                period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power])
+            else:
+                period_len_calc = 1
             input_period_len_calc_array[direction] = period_len_calc
             input_period_len_round_array[direction] = np.round(period_len_calc,1)
         
@@ -1108,7 +1110,10 @@ class granite_bank_measurement(measurement):
             B_peaks = signal.find_peaks(np.abs(B_x), height = 0.01*np.max(B_x))
             
             period_power = np.argmax(np.abs(np.fft.fft(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction])))
-            period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power])
+            if np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power] != 0: 
+                period_len_calc = np.abs((self.x_scale[1]-self.x_scale[0])*1/np.fft.fftfreq(input_b_field[B_peaks[0][0]:B_peaks[0][-1],direction].__len__())[period_power])
+            else:
+                period_len_calc = 1
             
             input_period_len_calc_array[direction] = period_len_calc
             input_period_len_round_array[direction] = np.round(period_len_calc,1)
@@ -1236,6 +1241,7 @@ class granite_bank_measurement(measurement):
                                      'I1_trap_bg',
                                      'I2_trap',
                                      'I2_trap_bg',
+                                     'trajectory',
                                      'K0_array',
                                      'Keff_array',
                                      'loc_K',
@@ -1278,8 +1284,7 @@ class granite_bank_measurement(measurement):
                                         
             elif item in bench_setting_attrs_plain:
                 bench_settings_grp.attrs[item] = self.__getattribute__(item)
-
-            
+                
             elif item == 'tracks':
                 for track in self.tracks:
                 #are you sure you need to create another group here?
@@ -1287,6 +1292,59 @@ class granite_bank_measurement(measurement):
                     
                     raw_data_group[str(track)][...] = self.tracks[track].dvm_data
                     raw_data_group[str(track)].attrs['unit'] = 'V'
+            
+            elif item in ['B_array','B0_array','B_array_bg_subtracted','B_array_bg_subtracted_peaks_val']:
+                print('{} is special and saved'.format(item))
+                analysed_data_grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                analysed_data_grp[item][...] = self.__getattribute__(item)
+                analysed_data_grp[item].attrs['unit'] = 'T'
+            
+            elif item == 'B_array_bg_subtracted_peaks_idx':
+                analysed_data_grp.require_dataset('{}'.format(item), shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                
+                analysed_data_grp[item][...] = self.__getattribute__(item)
+                
+            elif item in ['I1_smooth','I1_trap','I1_trap_bg']:
+                print('{} is special and saved'.format(item))
+                analysed_data_grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                analysed_data_grp[item][...] = self.__getattribute__(item)
+                analysed_data_grp[item].attrs['unit'] = 'Tmm'    
+                
+            elif item in ['I2_trap', 'I2_trap_bg']:
+                print('{} is special and saved'.format(item))
+                analysed_data_grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                analysed_data_grp[item][...] = self.__getattribute__(item)
+                analysed_data_grp[item].attrs['unit'] = 'Tmm^2'
+                
+            elif item in ['K0_array', 'Keff_array', 'loc_K', 'num_periods_array']:
+                print('{} is special and saved'.format(item))
+                analysed_data_grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                analysed_data_grp[item][...] = self.__getattribute__(item)
+                
+            elif item in ['local_phase_error_deg_array', 'phase_error_array', 'phase_error_array_j', 'phase_error_array_rms']:
+                print('{} is special and saved'.format(item))
+                analysed_data_grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                analysed_data_grp[item][...] = self.__getattribute__(item)
+                analysed_data_grp[item].attrs['unit'] = 'degree'
+                
+            elif item in ['period_len_calc_array', 'period_len_round_array']:
+                print('{} is special and saved'.format(item))
+                analysed_data_grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
+                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
+                #TODO fix this overwriting issue
+                analysed_data_grp[item][...] = self.__getattribute__(item)
+                analysed_data_grp[item].attrs['unit'] = 'mm'
+                
             
             elif item == 'I1' or item == 'I1_trap' or item == 'I1_trap_bg' or item == 'I1_smooth':
                 print('{} is special and saved'.format(item))
@@ -1320,13 +1378,6 @@ class granite_bank_measurement(measurement):
                 grp[item][...] = self.__getattribute__(item)
                 grp[item].attrs['unit'] = 'mm'
             
-            elif item == 'B_array_bg_subtracted':
-                print('{} is special and saved'.format(item))
-                grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
-                #this overwrites the existing dataset. It *should* be the same, but it's unsafe I guess
-                #TODO fix this overwriting issue
-                grp[item][...] = self.__getattribute__(item)
-                grp[item].attrs['unit'] = 'T'
             elif item == 'main_x_range':
                 print('{} is special and saved'.format(item))
                 grp.require_dataset('{}'.format(item),  shape = self.__getattribute__(item).shape, dtype = self.__getattribute__(item).dtype)
@@ -1469,6 +1520,8 @@ class granite_bank_measurement(measurement):
                 
                 print ('{} saved'.format(item))
                 
+            
+            
             else:
                 print(item)
                 grp.attrs[item] = self.__getattribute__(item)
